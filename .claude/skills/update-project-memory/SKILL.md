@@ -2,25 +2,28 @@
 name: update-project-memory
 description: >
   ALWAYS invoke after completing any task that adds, removes,
-  renames, or relocates files, components, routes, API endpoints,
-  dependencies, or design tokens. Also invoke when project
+  renames, or relocates files, screens, routes, services,
+  dependencies, or theme constants. Also invoke when project
   conventions change. Do not skip this after structural changes.
 ---
 
 ## What to maintain
 
-- .claude/skills/PROJECT-STATE.md
+- `PROJECT-STATE.md` at the repo root. Create it if it doesn't exist.
+
+This is an index of *what exists*. Decisions and their reasoning go in `DECISIONS.md`, not here.
 
 ## On every update:
 
-1. Read the current PROJECT-STATE.md
+1. Read the current `PROJECT-STATE.md`
 2. Diff what changed against what is documented
 3. Update ONLY the sections that changed:
-   - Components: name, path, client/server, purpose (one line)
-   - Routes: path, page component, layout
-   - API endpoints: path, method, what it does
+   - Routes: path, screen file in `src/app/`, layout/navigator
+   - Components: name, path, purpose (one line)
+   - Services & utils: path, exported functions, purpose (pure TS, no React)
+   - Native capabilities: module (e.g. `expo-local-authentication`), what it's used for, needs dev build? (y/n)
    - Dependencies: package, why it is here, version
-   - Design tokens: new/removed tokens in Tailwind config
+   - Theme: new/removed constants in `src/constants/`
    - Conventions: any pattern that changed
 4. Timestamp the update
 5. Do NOT rewrite sections that did not change
