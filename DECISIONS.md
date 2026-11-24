@@ -93,3 +93,11 @@ Face ID doesn't work in Expo Go, so a dev build is the only way to see the main 
 ## Styling: StyleSheet + design tokens + a few primitives — 2026-11-24
 **Chose:** the built-in `StyleSheet` with tokens in `constants/theme.ts` and a few primitives (`Screen`, `AppText`, `Button`, `Card`, `AmountText`), over NativeWind or Unistyles/Tamagui.
 Production fintech apps mostly win through a small in-house design system, and the engine underneath matters less. This is that pattern at take-home scale, with no build config, and it runs in Expo Go. It would grow into a shared design-system package, or move to Unistyles if strict variants became necessary.
+
+## Platforms: iOS and Android only — 2026-11-24
+**Chose:** dropping the web target (`react-native-web`, `react-dom`, `web` config) over keeping it with stubs.
+Biometrics and the native modules this module depends on are iOS/Android only, so web would mean a fallback for every core feature. The brief is about a mobile banking app, and less surface area means less to maintain.
+
+## Theme: light + dark, neutral surfaces with a violet brand color — 2026-11-24
+**Chose:** two token tables picked by `useColorScheme()`, with a neutral + violet palette, over light-only or platform-native system colors.
+With tokens, dark mode is mostly a second color table, and users expect it from a modern banking app. One brand color on neutral surfaces keeps red free to mean "error" or "debit" without competing.
