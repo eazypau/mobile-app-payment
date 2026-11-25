@@ -101,3 +101,23 @@ Biometrics and the native modules this module depends on are iOS/Android only, s
 ## Theme: light + dark, neutral surfaces with a violet brand color — 2026-11-24
 **Chose:** two token tables picked by `useColorScheme()`, with a neutral + violet palette, over light-only or platform-native system colors.
 With tokens, dark mode is mostly a second color table, and users expect it from a modern banking app. One brand color on neutral surfaces keeps red free to mean "error" or "debit" without competing.
+
+## Transfer flow: a modal route group with its own Stack — 2026-11-24
+**Chose:** `src/app/transfer/` presented as one modal (Send → Review → Success), over pushing each screen onto the root Stack.
+Closing the modal throws away the whole flow, so after Success there is no "back" into Review where the same transfer could be confirmed again. With a flat stack, every exit path would need a hand-written `router.replace` guard.
+
+## Recipient picker: an RN `<Modal>` inside the Send screen — 2026-11-24
+**Chose:** a native `Modal` (an iOS `pageSheet`) over a separate picker route or an inline list.
+Because the picker lives inside the Send screen, the selected recipient stays in local `useState`, which keeps the rule that the store is only written on "Review". An RN `Modal` is a separate native window rather than a `div` with a `z-index`, and it handles the Android back button through `onRequestClose`.
+
+## Amount input: one visible, formatted `TextInput` — 2026-11-24
+**Chose:** a `number-pad` `TextInput` whose value is the formatted amount (`"50.00"`), over a hidden input behind a large `Text`.
+Stripping the non-digits from what the user typed gives the amount in sen directly (`"50.005"` → `50005`), so the cash-register behavior needs no state machine. A visible input also stays accessible to screen readers, at the cost of a possible brief cursor flicker on Android.
+
+## Keyboard: built-in `KeyboardAvoidingView` — 2026-11-24
+**Chose:** `KeyboardAvoidingView` with `behavior="padding"` on both platforms and the header height as its offset, over `react-native-keyboard-controller`.
+This is what Expo's SDK 58 guide prescribes for Android edge-to-edge, where the window no longer resizes for the keyboard, and it runs in Expo Go. Keyboard-controller is smoother, but the guide says it needs a dev build, and one form doesn't need its extra control.
+
+## Icons: `expo-symbols` — 2026-11-24
+**Chose:** `SymbolView` from `expo-symbols` over `@expo/vector-icons` or `@react-native-vector-icons`.
+`SymbolView` renders native SF Symbols on iOS and Material Symbols on Android, it's already installed, and it runs in Expo Go. Expo's icons guide says `@expo/vector-icons` "will be deprecated and is not recommended".

@@ -2,26 +2,36 @@
 
 An index of what exists. Reasoning lives in `DECISIONS.md`.
 
-_Last updated: 2026-11-24 (slice 0: clean slate)_
+_Last updated: 2026-11-24 (slice 1: money + Send form UI)_
 
 ## Routes
-- `/` — `src/app/index.tsx` — Home (placeholder balance card + disabled Send button), in the root Stack
-- Root layout — `src/app/_layout.tsx` — `Stack` wrapped in a `ThemeProvider` fed from our tokens
+- `/` — `src/app/index.tsx` — Home: seed balance card + "Send money" → `/transfer/send`
+- Root layout — `src/app/_layout.tsx` — `Stack` in a token-fed `ThemeProvider`; `transfer` group presented as a modal
+- `/transfer/*` layout — `src/app/transfer/_layout.tsx` — nested `Stack` for the transfer flow (closing it discards the flow)
+- `/transfer/send` — `src/app/transfer/send.tsx` — Send form: recipient, cash-register amount, note (local `useState`)
 
 ## Components
 - `Screen` — `src/components/ui/screen.tsx` — screen root: themed background, padding, bottom safe area
 - `AppText` — `src/components/ui/app-text.tsx` — text with `variant` (title/heading/body/label/caption) and token `color`
 - `Button` — `src/components/ui/button.tsx` — `Pressable` with primary/secondary/ghost, `disabled`, `loading`
 - `Card` — `src/components/ui/card.tsx` — rounded surface container
+- `AmountInput` — `src/components/amount-input.tsx` — cash-register `TextInput` (`number-pad`), value in sen
+- `RecipientRow` — `src/components/recipient-row.tsx` — initials avatar, name, bank + masked account, optional chevron
+- `RecipientPicker` — `src/components/recipient-picker.tsx` — RN `Modal` (iOS pageSheet) with search + `FlatList`
+- `HeaderCloseButton` — `src/components/header-close-button.tsx` — ✕ that closes the transfer modal
 
 ## Hooks
 - `useTheme` — `src/hooks/use-theme.ts` — returns the light/dark color tokens for the system scheme
 
 ## Services & utils
-- _(none yet)_
+- `src/utils/money.ts` — `formatSen`, `formatSenPlain`, `parseAmountInput`, `SEN_PER_RINGGIT`, `MAX_INPUT_SEN` — integer-sen money helpers
+- `src/utils/recipient.ts` — `maskAccountNumber`, `getInitials`, `filterRecipients`
+- `src/services/types.ts` — `Recipient` domain type
+- `src/services/mock-data.ts` — `MOCK_BALANCE_SEN`, `MOCK_RECIPIENTS` seed data (imported directly until slice 3a)
+- Tests: `src/utils/*.test.ts` (Jest, `jest-expo` preset; `npm test`)
 
 ## Native capabilities
-- _(none added yet)_
+- `expo-symbols` — `SymbolView` icons (SF Symbols iOS / Material Symbols Android) — dev build? n
 
 ## Dependencies
 - `expo` ~58.0.26, `react-native` 0.88.1, `react` 19.3.0 — platform
@@ -29,8 +39,10 @@ _Last updated: 2026-11-24 (slice 0: clean slate)_
 - `react-native-safe-area-context` ~5.11.1 — `SafeAreaView` in `Screen`
 - `expo-status-bar` ~58.0.5 — status bar style follows light/dark
 - `react-native-reanimated` 4.7.1 + `react-native-worklets` 0.13.0 — planned: success/shake animations
+- `expo-symbols` ~58.0.5 — icons
 - `eslint` ^9 + `eslint-config-expo` ~58.0.4 (dev) — `npx expo lint`
-- Template leftovers, unused so far: `@expo/ui`, `expo-constants`, `expo-device`, `expo-font`, `expo-glass-effect`, `expo-image`, `expo-linking`, `expo-symbols`, `expo-system-ui`, `expo-web-browser`, `react-native-gesture-handler`
+- `jest` ~30.5.2 + `jest-expo` ~58.0.15 + `@types/jest` 30.0.0 + `@testing-library/react-native` ^14.1.0 (dev) — unit/component tests
+- Kept from template (router peers or likely needed): `expo-constants`, `expo-font`, `expo-linking`, `expo-system-ui`, `react-native-gesture-handler`
 
 ## Theme (`src/constants/theme.ts`)
 - `Colors.light` / `Colors.dark` — background, surface, border, text, textMuted, primary, primarySoft, onPrimary, success, danger, dangerSoft
@@ -41,3 +53,5 @@ _Last updated: 2026-11-24 (slice 0: clean slate)_
 - File names are kebab-case (`app-text.tsx`), and components are named exports (screens are default exports)
 - Screens use `Screen`/`AppText`/`Button`/`Card` and token values only, never raw colors or sizes
 - Targets iOS + Android only, no web
+- Money is always integer sen; only `utils/money.ts` converts to ringgit text
+- Tests sit next to the code as `*.test.ts`; `src/app/` holds routes only
