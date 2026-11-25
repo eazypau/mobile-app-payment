@@ -5,6 +5,7 @@ import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
 
 import { DetailRow } from '@/components/detail-row';
 import { FieldError } from '@/components/field-error';
+import { PinSheet } from '@/components/pin-sheet';
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -15,6 +16,7 @@ import { getErrorMessage, isApiErrorCode } from '@/services/api-error';
 import { authorizeTransfer } from '@/services/auth';
 import type { TransferRequest } from '@/services/types';
 import { useTransferStore } from '@/store/transfer-store';
+import { getPinNotice } from '@/utils/biometrics';
 import { formatSen } from '@/utils/money';
 import { maskAccountNumber } from '@/utils/recipient';
 import { getTransferRecovery } from '@/utils/transfer';
@@ -32,6 +34,9 @@ function ReviewContent({ draft }: { draft: TransferRequest }) {
   const setReceipt = useTransferStore((state) => state.setReceipt);
   const sendTransfer = useSendTransfer();
   const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  // null = PIN sheet closed; otherwise it's open, with an optional notice explaining why.
+  const [pinSheet, setPinSheet] = useState<{ notice: string | null } | null>(null);
 
   const isBusy = isAuthorizing || sendTransfer.isPending;
   const recovery = sendTransfer.isError ? getTransferRecovery(sendTransfer.error) : null;
@@ -58,11 +63,30 @@ function ReviewContent({ draft }: { draft: TransferRequest }) {
   }
 
   async function handleConfirm() {
+    setAuthError(null);
     setIsAuthorizing(true);
-    const authorization = await authorizeTransfer();
+    const result = await authorizeTransfer(`Send ${formatSen(draft.amountSen)} to ${draft.recipient.name}`);
     setIsAuthorizing(false);
 
-    if (authorization.ok) send();
+    switch (result.status) {
+      case 'authorized':
+        send();
+        break;
+      case 'cancelled':
+        // The user backed out on purpose: no error, just stay here.
+        break;
+      case 'needs_pin':
+        setPinSheet({ notice: getPinNotice(result.reason) });
+        break;
+      case 'failed':
+        setAuthError("We couldn't confirm it's you. Try again.");
+        break;
+    }
+  }
+
+  function handlePinVerified() {
+    setPinSheet(null);
+    send();
   }
 
   return (
@@ -95,6 +119,8 @@ function ReviewContent({ draft }: { draft: TransferRequest }) {
           </DetailRow>
         </Card>
 
+        {authError && <FieldError message={authError} />}
+
         {sendTransfer.isError && (
           <View style={styles.error}>
             <FieldError message={getErrorMessage(sendTransfer.error)} />
@@ -115,6 +141,13 @@ function ReviewContent({ draft }: { draft: TransferRequest }) {
       ) : (
         <Button title="Confirm and send" onPress={handleConfirm} loading={isBusy} />
       )}
+
+      <PinSheet
+        visible={pinSheet !== null}
+        notice={pinSheet?.notice ?? null}
+        onVerified={handlePinVerified}
+        onClose={() => setPinSheet(null)}
+      />
     </Screen>
   );
 }

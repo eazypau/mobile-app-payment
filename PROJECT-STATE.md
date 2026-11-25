@@ -2,14 +2,14 @@
 
 An index of what exists. Reasoning lives in `DECISIONS.md`.
 
-_Last updated: 2026-11-25 (slice 3b: transfer, Review, Success)_
+_Last updated: 2026-11-25 (slice 4: biometrics + PIN fallback)_
 
 ## Routes
 - `/` — `src/app/index.tsx` — Home: balance via `useAccount` (skeleton / error card / stale notice), pull-to-refresh, "Send money" → `/transfer/send`
 - Root layout — `src/app/_layout.tsx` — `QueryClientProvider` + `AppState` focus wiring, `Stack` in a token-fed `ThemeProvider`; `transfer` group presented as a modal
 - `/transfer/*` layout — `src/app/transfer/_layout.tsx` — nested `Stack` for the transfer flow (closing it discards the flow)
 - `/transfer/send` — `src/app/transfer/send.tsx` — waits for `useAccount`, then `SendForm`: recipient, cash-register amount, note (local `useState`), inline validation errors; "Review" saves the draft
-- `/transfer/review` — `src/app/transfer/review.tsx` — summary, `authorizeTransfer()` then `useSendTransfer`; inline errors with Try again / Edit transfer; back locked while busy; redirects Home without a draft
+- `/transfer/review` — `src/app/transfer/review.tsx` — summary, `authorizeTransfer()` (biometrics) or `PinSheet`, then `useSendTransfer`; inline errors with Try again / Edit transfer; back locked while busy; redirects Home without a draft
 - `/transfer/success` — `src/app/transfer/success.tsx` — animated receipt, Share, Done (`router.dismissTo('/')`); no back; redirects Home without a receipt
 
 ## Components
@@ -23,13 +23,14 @@ _Last updated: 2026-11-25 (slice 3b: transfer, Review, Success)_
 - `AccountLookup` — `src/components/account-lookup.tsx` — bank chips + debounced, gated name lookup + confirm card
 - `Skeleton` — `src/components/ui/skeleton.tsx` — grey placeholder bar while loading
 - `HeaderCloseButton` — `src/components/header-close-button.tsx` — ✕ that closes the transfer modal
+- `PinSheet` — `src/components/pin-sheet.tsx` — RN `Modal` with a custom 6-digit keypad, server-checked PIN, shake on wrong PIN, lockout
 - `DetailRow` — `src/components/detail-row.tsx` — label/value row for the Review summary and the receipt
 - `FieldError` — `src/components/field-error.tsx` — inline danger message with icon, announced to screen readers
 
 ## Hooks
 - `useTheme` — `src/hooks/use-theme.ts` — returns the light/dark color tokens for the system scheme
 - `useShake` — `src/hooks/use-shake.ts` — Reanimated horizontal shake: `{ style, shake }`
-- `useAccount`, `useRecipients`, `useAccountLookup`, `useSendTransfer`, `queryKeys` — `src/hooks/queries.ts` — all TanStack Query calls (transfer: `retry: false`, invalidates the account)
+- `useAccount`, `useRecipients`, `useAccountLookup`, `useSendTransfer`, `useVerifyPin`, `queryKeys` — `src/hooks/queries.ts` — all TanStack Query calls (transfer: `retry: false`, invalidates the account)
 
 ## Store
 - `useTransferStore` — `src/store/transfer-store.ts` — Zustand: `draft` (a `TransferRequest` with idempotency key), `receipt`, `saveDraft`, `setReceipt`, `reset`
@@ -39,9 +40,10 @@ _Last updated: 2026-11-25 (slice 3b: transfer, Review, Success)_
 - `src/utils/recipient.ts` — `maskAccountNumber`, `getInitials`, `filterRecipients`
 - `src/utils/validation.ts` — `validateTransfer`, `checkTransferAllowed`, `getRemainingDailyLimit`, `hasErrors`, `MIN_TRANSFER_SEN`, `NOTE_MAX_LENGTH` — Zod shape rules + balance/limit rules
 - `src/utils/recipient.ts` (added) — `looksLikeAccountNumber`, `isAccountNumberFormat`
-- `src/services/types.ts` — `Recipient`, `Account`, `Bank`, `ApiErrorCode`, `ApiResult<T>`, `TransferRequest`, `TransferReceipt`
-- `src/services/mock-api.ts` — `getAccount`, `getRecipients`, `lookupAccount`, `transfer`, `mockSettings`, `resetMockServer` — in-memory backend with latency, idempotency, server-side checks and magic-value failures
-- `src/services/auth.ts` — `authorizeTransfer()` — the authorization seam (stub until slice 4)
+- `src/services/types.ts` — `Recipient`, `Account`, `Bank`, `ApiErrorCode`, `ApiError` (with `attemptsRemaining`), `ApiResult<T>`, `TransferRequest`, `TransferReceipt`
+- `src/services/mock-api.ts` — `getAccount`, `getRecipients`, `lookupAccount`, `transfer`, `verifyPin`, `DEMO_PIN` (246810), `MAX_PIN_ATTEMPTS`, `mockSettings`, `resetMockServer` — in-memory backend with latency, idempotency, server-side checks and magic-value failures
+- `src/services/auth.ts` — `authorizeTransfer(promptMessage)` — Expo Go check, hardware/enrollment check, biometric-only prompt
+- `src/utils/biometrics.ts` — `toAuthorizationResult`, `getPinNotice`, `AuthorizationResult`, `PinReason`
 - `src/utils/transfer.ts` — `isSameTransfer`, `getTransferRecovery`
 - `src/utils/date.ts` — `formatDateTime`
 - `src/services/api-error.ts` — `ApiRequestError`, `unwrap`, `isApiErrorCode`, `getErrorMessage`
@@ -52,6 +54,7 @@ _Last updated: 2026-11-25 (slice 3b: transfer, Review, Success)_
 - `expo-symbols` — `SymbolView` icons (SF Symbols iOS / Material Symbols Android) — dev build? n
 - `expo-haptics` — error/success haptics — dev build? n
 - `expo-crypto` — `randomUUID()` idempotency keys — dev build? n
+- `expo-local-authentication` — Face ID / Touch ID / fingerprint prompt; config plugin sets `NSFaceIDUsageDescription` — dev build? y for iOS Face ID (Expo Go uses the PIN)
 
 ## Dependencies
 - `expo` ~58.0.26, `react-native` 0.88.1, `react` 19.3.0 — platform
@@ -65,6 +68,7 @@ _Last updated: 2026-11-25 (slice 3b: transfer, Review, Success)_
 - `@tanstack/react-query` ^5.108.4 — server state (account, recipients, lookups, transfer mutation)
 - `zustand` ^5.1.0 — client state for the transfer draft and receipt
 - `expo-crypto` ~58.0.8 — idempotency keys
+- `expo-local-authentication` ~58.0.3 — biometric authorization
 - `eslint` ^9 + `eslint-config-expo` ~58.0.4 (dev) — `npx expo lint`
 - `jest` ~30.5.2 + `jest-expo` ~58.0.15 + `@types/jest` 30.0.0 + `@testing-library/react-native` ^14.1.0 (dev) — unit/component tests
 - Kept from template (router peers or likely needed): `expo-constants`, `expo-font`, `expo-linking`, `expo-system-ui`, `react-native-gesture-handler`
@@ -78,7 +82,7 @@ _Last updated: 2026-11-25 (slice 3b: transfer, Review, Success)_
 ## Conventions
 - File names are kebab-case (`app-text.tsx`), and components are named exports (screens are default exports)
 - Screens use `Screen`/`AppText`/`Button`/`Card` and token values only, never raw colors or sizes
-- Targets iOS + Android only, no web
+- Targets iOS + Android only, no web; `npm run ios` / `npm run android` build a development client (`expo run:*`)
 - Money is always integer sen; only `utils/money.ts` converts to ringgit text
 - Tests sit next to the code as `*.test.ts`; `src/app/` holds routes only
 - Form errors are derived on render from `validateTransfer`, never stored in state

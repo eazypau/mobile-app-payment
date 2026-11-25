@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { isApiErrorCode, unwrap } from '@/services/api-error';
-import { getAccount, getRecipients, lookupAccount, transfer } from '@/services/mock-api';
+import { getAccount, getRecipients, lookupAccount, transfer, verifyPin } from '@/services/mock-api';
 import type { TransferRequest } from '@/services/types';
 import { isAccountNumberFormat } from '@/utils/recipient';
 
@@ -54,5 +54,13 @@ export function useSendTransfer() {
     retry: false,
     // Success or failure, the balance may have changed: refetch it from the server.
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.account }),
+  });
+}
+
+/** Checks the app PIN on the server, which owns the attempt counter and lockout. */
+export function useVerifyPin() {
+  return useMutation({
+    mutationFn: async (pin: string) => unwrap(await verifyPin(pin)),
+    retry: false,
   });
 }

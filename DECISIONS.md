@@ -185,3 +185,19 @@ The user already authorized this exact transfer, and the same idempotency key me
 ## Flow state reset: when Home starts a new transfer — 2026-11-25
 **Chose:** clearing the draft and receipt when "Send money" is tapped, over clearing them in a `useEffect` cleanup when Success unmounts.
 It's an event, so it belongs in the event handler: no effect timing to reason about, and React's development double-invoked effects can't wipe the receipt while Success is still showing. A stale draft left in memory is harmless, because its idempotency key would only replay the original receipt.
+
+## PIN entry: an RN `<Modal>` sheet over Review — 2026-11-25
+**Chose:** a native sheet over Review, over a `/transfer/pin` route or a keypad inline on Review.
+The PIN stays in the sheet's local state, never in a URL or a store, and the transfer summary stays visible underneath. It reuses the same pattern as the recipient picker, so there's one less concept to explain.
+
+## PIN input: a custom on-screen keypad — 2026-11-25
+**Chose:** our own 0–9 keypad with dots, over a `secureTextEntry` `TextInput` with the system number pad.
+A `TextInput` goes through whatever keyboard app is installed, and third-party Android keyboards can log keystrokes, which is why banking apps draw their own PIN pad. It also looks the same on both platforms, at the cost of about a dozen `Pressable`s.
+
+## PIN lockout: after 5 wrong PINs, locked until the app restarts — 2026-11-25
+**Chose:** a hard lock over a 30-second cooldown.
+It mirrors real banks, which lock the credential until the user re-verifies, rather than inviting another round of guesses. The attempt counter lives in the mock server's memory, so reloading the app (the demo's "call the bank") resets it, and the README says so.
+
+## Expo Go: skip biometrics and use the PIN, with a notice — 2026-11-25
+**Chose:** detecting Expo Go (`Constants.executionEnvironment`) and going straight to the PIN with an explanation, over calling `authenticateAsync` and letting it fail.
+Face ID isn't supported in Expo Go, and how the call fails there isn't documented, so reviewers could see something confusing. Being explicit keeps the PIN fallback demoable everywhere, and Face ID works in a development build.
