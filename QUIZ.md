@@ -285,3 +285,42 @@ _Model answers recorded for later reading._
 **My answer:** _(skipped)_
 
 **Answer:** The PIN step needs UI, and service files can't render, so `authorizeTransfer()` returns `needs_pin` and the **Review screen** opens the `PinSheet`. The server then checks the PIN through `verifyPin`. The production upgrade still sits behind the same seam: `authorizeTransfer()` would sign a server challenge with a biometric-protected device key, instead of trusting the OS's yes/no. The PIN path is *already* server-verified, which makes it, interestingly, the more "production-shaped" of the two today.
+
+---
+
+## Slice 5: History, lists, quick re-send
+
+_Model answers recorded for later reading._
+
+### 1. FlashList *recycles* row views. What bug would appear if `TransactionRow` had `const [expanded, setExpanded] = useState(false)` and you expanded one row, then scrolled?
+
+**My answer:** _(skipped)_
+
+**Answer:** When the expanded row scrolls off-screen, FlashList reuses **that same component instance** to show a different transaction further down. Its state comes along, so some unrelated transaction appears expanded, and the one you actually expanded shows collapsed when you scroll back. FlatList unmounts and remounts rows instead, so it doesn't have this problem (but it's slower). The fix is to keep rows pure: per-item UI state lives in the parent, keyed by transaction id, and is passed down as props.
+
+### 2. What does `getItemType={(row) => row.type}` buy us?
+
+**My answer:** _(skipped)_
+
+**Answer:** FlashList keeps a separate pool of recycled views per type. Without it, a short date-header view could be recycled into a tall transaction row, or the reverse. Every recycle would then mean rebuilding the view's structure and re-measuring its layout, which causes jank and possibly flicker. With types, headers are only reused as headers and rows only as rows, so recycling is cheap: same structure, new text.
+
+### 3. Why is the pagination cursor "the id of the last item I have" instead of a page number or offset?
+
+**My answer:** _(skipped)_
+
+**Answer:** New transfers are added at the **top** of the history. Say you've loaded items 1–20 and then make a transfer, so it becomes the new #1. With offset pagination, "give me items 21–40" now starts with your old #20, a **duplicate** row. (Deletions would *skip* a row instead.) "Everything older than transaction X" doesn't depend on positions, so it stays correct. `mock-api.test.ts` has a test that inserts a transfer between two page loads to prove it.
+
+### 4. `onEndReached` calls `fetchNextPage()` only if `hasNextPage && !isFetchingNextPage && !isFetchNextPageError`. Why each condition?
+
+**My answer:** _(skipped)_
+
+**Answer:** `onEndReached` can fire several times while you're near the bottom (scroll bounce, re-layout):
+- `hasNextPage`: don't request past the last page (`nextCursor` is `null`).
+- `!isFetchingNextPage`: don't start a second request for the same page while one is in flight.
+- `!isFetchNextPageError`: after a failure, **don't silently retry in a loop** every time the list bounces. Show the "Try again" row and let the user decide.
+
+### 5. Tapping a past transfer pre-fills Send through the store's `prefill`, not `router.push('/transfer/send?to=r1&amount=5000')`. Why, given that `prefill` is only a *suggestion*?
+
+**My answer:** _(skipped)_
+
+**Answer:** Expo Router routes are **deep links**. If Send read its recipient and amount from URL params, anyone could send the user a link like `mobileapppayment://transfer/send?to=<scammer>&amount=500000` that opens a ready-made transfer. It still needs Review and biometrics, but it's a social-engineering gift ("just tap confirm"). With the store, only code inside the app can pre-fill a transfer. It also keeps one consistent rule for the whole flow: transfer data never travels in URLs.
