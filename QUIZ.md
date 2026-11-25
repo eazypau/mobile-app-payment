@@ -163,3 +163,46 @@ The handler compares "was allowed" against "is allowed", so it fires exactly on 
 - Zod checks *after trimming*, which `maxLength` can't do.
 
 On paste: I believe RN's native `maxLength` also truncates pasted text on both platforms, so paste probably isn't the gap. I haven't verified it on a device.
+
+---
+
+## Slice 3a: Mock API reads + server state
+
+_Not answered at the time. Model answers recorded for later reading._
+
+### 1. `queryClient` is created at the top level of `_layout.tsx`, outside `RootLayout`. What would break if it were `const queryClient = new QueryClient()` *inside* the component?
+
+**My answer:** _(skipped)_
+
+**Answer:** Every re-render of `RootLayout` would create a **brand-new, empty cache**. `RootLayout` re-renders whenever the color scheme changes, among other things. The cached balance and recipients would vanish, every screen would show skeletons again and refetch, and an in-flight request's result would land in a cache nobody reads anymore. Module scope means one client for the app's lifetime. (Inside a component, you'd need `useState(() => new QueryClient())` to keep it stable.)
+
+### 2. When a background refresh fails, Home keeps the old balance with "Couldn't refresh" instead of showing the error card. What's the argument for that in a banking app, and what's the risk?
+
+**My answer:** _(skipped)_
+
+**Answer:**
+- **For it:** A brief network blip shouldn't blank out the user's money. Losing the balance looks alarming ("where did my money go?"), and the last known value is still useful.
+- **The risk:** **Stale money data.** The balance might have changed elsewhere, through a card payment or another device. So the stale value must be clearly labelled, which is the "Couldn't refresh" line. It must also never be trusted for decisions: the server re-checks the balance on every transfer, and client-side checks are only for UX.
+
+### 3. In `AccountLookup`, what bug does the `isSettled` check prevent? You typed `1234567890` and TAN WEI JIE appeared, then you change the last digit to `1`.
+
+**My answer:** _(skipped)_
+
+**Answer:** For the 500ms debounce window after the edit, `settledNumber` is still `1234567890`, so the query (keyed by the *settled* number) still holds TAN WEI JIE. Without `isSettled`, the screen would show **TAN WEI JIE under the new number `1234567891`**. The user could tap "Send to this account" and pay a name that was never looked up for that number. That's exactly the kind of mismatch name enquiry exists to prevent. `isSettled` shows "Looking up…" until the input and the looked-up number agree.
+
+### 4. Lookups retry network errors once but never retry "not found", and in slice 3b transfers will have retries *off*. Why the difference?
+
+**My answer:** _(skipped)_
+
+**Answer:** Retrying only makes sense when a retry can succeed **and** is safe:
+- **"Not found"** is a definite answer. Retrying gives the same result and just wastes a paid name enquiry.
+- **A network error on a lookup** might be a blip, and a lookup is a *read*, so repeating it has no side effects.
+- **A transfer** is a *write* that moves money. An automatic retry after a timeout could pay twice. It's only safe with the same idempotency key, and the user should decide to retry ("Try again") with the outcome shown, not have the library do it silently.
+
+### 5. Why does a lookup result stay cached for 5 minutes, while the account balance uses the default `staleTime` of `0`?
+
+**My answer:** _(skipped)_
+
+**Answer:** They change at very different rates and cost different amounts:
+- **An account holder's name** for a given number practically never changes, and each name enquiry may cost the bank money. Reusing it for 5 minutes avoids repeat lookups when someone retypes the same number.
+- **The balance** can change at any moment (incoming money, card payments), and showing a wrong balance is a trust problem. With `staleTime: 0`, it's always considered stale, so it refetches whenever a screen mounts or the app returns to the foreground.
