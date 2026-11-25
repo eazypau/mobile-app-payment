@@ -206,3 +206,46 @@ _Not answered at the time. Model answers recorded for later reading._
 **Answer:** They change at very different rates and cost different amounts:
 - **An account holder's name** for a given number practically never changes, and each name enquiry may cost the bank money. Reusing it for 5 minutes avoids repeat lookups when someone retypes the same number.
 - **The balance** can change at any moment (incoming money, card payments), and showing a wrong balance is a trust problem. With `staleTime: 0`, it's always considered stale, so it refetches whenever a screen mounts or the app returns to the foreground.
+
+---
+
+## Slice 3b: Transfer, Review, Success
+
+_Model answers recorded for later reading._
+
+### 1. Review goes to Success with `router.replace('/transfer/success')`, not `router.push`. Why?
+
+**My answer:** _(skipped)_
+
+**Answer:** `push` would leave Review underneath Success in the stack, so back (the header button, the swipe, or Android's hardware back) would land on a Review screen for a transfer that's **already done**, with a "Confirm and send" button on it. `replace` swaps Review out, so the stack is `[Send, Success]`. Success then also hides its back button, disables the swipe, and treats Android back as Done, so the only exit is closing the whole flow.
+
+### 2. Walk through sending to "Test: Timeout": what happens on the server and in the app, from "Confirm and send" to "Try again"?
+
+**My answer:** _(skipped)_
+
+**Answer:**
+1. The app sends the draft with idempotency key `K`. The server checks that `K` is new, deducts the money, records the receipt under `K`, then **returns `TIMEOUT`**, as if the response got lost.
+2. The app can't know whether money moved. `getTransferRecovery` says `'retry'`, the message says "we can't confirm this transfer yet… you won't be charged twice", and `onSettled` refetches the balance.
+3. "Try again" resends **the same draft with the same `K`**. The server finds `K` and returns the original receipt **without deducting again**, and the app shows Success. The `TIMEOUT` test in `mock-api.test.ts` proves the balance drops exactly once.
+
+### 3. `saveDraft` keeps the idempotency key if the draft hasn't changed. What double payment would a brand-new key on every Review tap allow?
+
+**My answer:** _(skipped)_
+
+**Answer:** You confirm, get a `TIMEOUT` (but the money moved), go back to Send, and tap Review again *without changing anything*. With a fresh key, the server would see a new transfer and **pay a second time**. Keeping the key for an identical draft means the server recognizes it as the same transfer. A *changed* draft (a different amount, recipient or note) really is a different transfer, so it gets a new key.
+
+### 4. The transfer mutation invalidates the account query in `onSettled`, not just `onSuccess`. Why?
+
+**My answer:** _(skipped)_
+
+**Answer:** A failure can change the balance too, or reveal that the app's copy is stale:
+- After a `TIMEOUT`, the money **did** move, so the balance must refresh even though the call "failed".
+- `INSUFFICIENT_FUNDS` means the balance changed elsewhere, so the Send screen's live limit checks need the real number when the user taps "Edit transfer".
+
+`onSettled` runs after both outcomes, so the cached balance is never trusted after any transfer attempt.
+
+### 5. Why does Home reset the store when a new transfer starts, instead of a `useEffect` cleanup on Success?
+
+**My answer:** _(skipped)_
+
+**Answer:** Starting a new transfer is a **user event**, so the reset belongs in its handler (React's "You Might Not Need an Effect"). An unmount cleanup has timing risks. In development, React can mount, clean up and re-mount effects to surface bugs, which would run `reset()` while Success is still on screen, wiping the receipt and redirecting Home. Resetting at the start of a new flow has no such timing. Any stale draft left in memory is harmless: its idempotency key could only replay the original receipt, never pay again.
