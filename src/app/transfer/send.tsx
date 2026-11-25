@@ -60,8 +60,10 @@ function SendForm({ account }: { account: Account }) {
   const saveDraft = useTransferStore((state) => state.saveDraft);
 
   // Form state stays local while typing; it's written to the store only on "Review".
-  const [recipient, setRecipient] = useState<Recipient | null>(null);
-  const [amountSen, setAmountSen] = useState(0);
+  // When re-sending a past transfer, the form starts from its recipient and amount.
+  const prefill = useTransferStore((state) => state.prefill);
+  const [recipient, setRecipient] = useState<Recipient | null>(prefill?.recipient ?? null);
+  const [amountSen, setAmountSen] = useState(prefill?.amountSen ?? 0);
   const [note, setNote] = useState('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [hasTriedReview, setHasTriedReview] = useState(false);
@@ -115,6 +117,9 @@ function SendForm({ account }: { account: Account }) {
           contentContainerStyle={styles.form}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag">
+          {/* maybe I will consider to hide this for the time being, as I felt this modal has too many things and I have never see mobile apps having this selection */}
+          {/* <RecentRecipients selectedId={recipient?.id ?? null} onSelect={setRecipient} /> */}
+
           <View style={styles.field}>
             <AppText variant="label">To</AppText>
             <View

@@ -14,16 +14,21 @@ type TransferState = {
   draft: TransferRequest | null;
   /** The last successful transfer, shown on the Success screen. */
   receipt: TransferReceipt | null;
+  /** Starting values for the Send form when re-sending a past transfer. */
+  prefill: { recipient: Recipient; amountSen: number } | null;
   /** Saves the form for review. Keeps the idempotency key if the transfer hasn't changed. */
   saveDraft: (fields: { recipient: Recipient; amountSen: number; note: string }) => void;
   setReceipt: (receipt: TransferReceipt) => void;
   /** Starts a fresh flow. */
   reset: () => void;
+  /** Starts a fresh flow, pre-filled from a past transfer. */
+  startResend: (recipient: Recipient, amountSen: number) => void;
 };
 
 export const useTransferStore = create<TransferState>()((set, get) => ({
   draft: null,
   receipt: null,
+  prefill: null,
 
   saveDraft: (fields) => {
     const current = get().draft;
@@ -33,5 +38,7 @@ export const useTransferStore = create<TransferState>()((set, get) => ({
 
   setReceipt: (receipt) => set({ receipt }),
 
-  reset: () => set({ draft: null, receipt: null }),
+  reset: () => set({ draft: null, receipt: null, prefill: null }),
+
+  startResend: (recipient, amountSen) => set({ draft: null, receipt: null, prefill: { recipient, amountSen } }),
 }));

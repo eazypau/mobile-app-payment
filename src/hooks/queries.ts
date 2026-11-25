@@ -1,7 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { isApiErrorCode, unwrap } from '@/services/api-error';
-import { getAccount, getRecipients, lookupAccount, transfer, verifyPin } from '@/services/mock-api';
+import { getAccount, getRecipients, getTransactions, lookupAccount, transfer, verifyPin } from '@/services/mock-api';
 import type { TransferRequest } from '@/services/types';
 import { isAccountNumberFormat } from '@/utils/recipient';
 
@@ -13,6 +13,7 @@ import { isAccountNumberFormat } from '@/utils/recipient';
 export const queryKeys = {
   account: ['account'] as const,
   recipients: ['recipients'] as const,
+  transactions: ['transactions'] as const,
   lookup: (bankId: string | null, accountNumber: string) => ['lookup', bankId, accountNumber] as const,
 };
 
@@ -27,6 +28,21 @@ export function useRecipients() {
   return useQuery({
     queryKey: queryKeys.recipients,
     queryFn: async () => unwrap(await getRecipients()),
+  });
+}
+
+export const HISTORY_PAGE_SIZE = 20;
+
+/**
+ * Transaction history, loaded 20 at a time. TanStack Query keeps the pages
+ * and the cursor; screens call `fetchNextPage()` near the end of the list.
+ */
+export function useTransactions() {
+  return useInfiniteQuery({
+    queryKey: queryKeys.transactions,
+    queryFn: async ({ pageParam }) => unwrap(await getTransactions({ cursor: pageParam, limit: HISTORY_PAGE_SIZE })),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 }
 
@@ -52,8 +68,12 @@ export function useSendTransfer() {
     // Never retry money movement automatically. The user retries on purpose,
     // with the same idempotency key, so a retry can't pay twice.
     retry: false,
-    // Success or failure, the balance may have changed: refetch it from the server.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.account }),
+    // Success or failure, the balance and history may have changed: refetch them from the server.
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.account }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions }),
+      ]),
   });
 }
 

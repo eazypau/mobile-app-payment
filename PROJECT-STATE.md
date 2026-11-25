@@ -2,10 +2,11 @@
 
 An index of what exists. Reasoning lives in `DECISIONS.md`.
 
-_Last updated: 2026-11-25 (slice 4: biometrics + PIN fallback)_
+_Last updated: 2026-11-25 (slice 5: history, lists, quick re-send)_
 
 ## Routes
-- `/` — `src/app/index.tsx` — Home: balance via `useAccount` (skeleton / error card / stale notice), pull-to-refresh, "Send money" → `/transfer/send`
+- `/` — `src/app/index.tsx` — Home: balance via `useAccount` (skeleton / error card / stale notice), 5 recent transactions (tap to re-send), "See all" → `/history`, pull-to-refresh, "Send money" → `/transfer/send`
+- `/history` — `src/app/history.tsx` — FlashList of all transactions: sticky day headers, infinite scroll (20/page), footer spinner/retry/end, pull-to-refresh, tap to re-send
 - Root layout — `src/app/_layout.tsx` — `QueryClientProvider` + `AppState` focus wiring, `Stack` in a token-fed `ThemeProvider`; `transfer` group presented as a modal
 - `/transfer/*` layout — `src/app/transfer/_layout.tsx` — nested `Stack` for the transfer flow (closing it discards the flow)
 - `/transfer/send` — `src/app/transfer/send.tsx` — waits for `useAccount`, then `SendForm`: recipient, cash-register amount, note (local `useState`), inline validation errors; "Review" saves the draft
@@ -23,6 +24,8 @@ _Last updated: 2026-11-25 (slice 4: biometrics + PIN fallback)_
 - `AccountLookup` — `src/components/account-lookup.tsx` — bank chips + debounced, gated name lookup + confirm card
 - `Skeleton` — `src/components/ui/skeleton.tsx` — grey placeholder bar while loading
 - `HeaderCloseButton` — `src/components/header-close-button.tsx` — ✕ that closes the transfer modal
+- `TransactionRow` — `src/components/transaction-row.tsx` — pure history row (FlashList-safe), signed amount, optional re-send and day label
+- `RecentRecipients` — `src/components/recent-recipients.tsx` — one-tap chips on Send from cached history
 - `PinSheet` — `src/components/pin-sheet.tsx` — RN `Modal` with a custom 6-digit keypad, server-checked PIN, shake on wrong PIN, lockout
 - `DetailRow` — `src/components/detail-row.tsx` — label/value row for the Review summary and the receipt
 - `FieldError` — `src/components/field-error.tsx` — inline danger message with icon, announced to screen readers
@@ -30,22 +33,25 @@ _Last updated: 2026-11-25 (slice 4: biometrics + PIN fallback)_
 ## Hooks
 - `useTheme` — `src/hooks/use-theme.ts` — returns the light/dark color tokens for the system scheme
 - `useShake` — `src/hooks/use-shake.ts` — Reanimated horizontal shake: `{ style, shake }`
-- `useAccount`, `useRecipients`, `useAccountLookup`, `useSendTransfer`, `useVerifyPin`, `queryKeys` — `src/hooks/queries.ts` — all TanStack Query calls (transfer: `retry: false`, invalidates the account)
+- `useAccount`, `useRecipients`, `useAccountLookup`, `useTransactions` (infinite), `useSendTransfer`, `useVerifyPin`, `queryKeys` — `src/hooks/queries.ts` — all TanStack Query calls (transfer: `retry: false`, invalidates account + transactions)
 
 ## Store
-- `useTransferStore` — `src/store/transfer-store.ts` — Zustand: `draft` (a `TransferRequest` with idempotency key), `receipt`, `saveDraft`, `setReceipt`, `reset`
+- `useTransferStore` — `src/store/transfer-store.ts` — Zustand: `draft` (a `TransferRequest` with idempotency key), `receipt`, `prefill`, `saveDraft`, `setReceipt`, `reset`, `startResend`
 
 ## Services & utils
 - `src/utils/money.ts` — `formatSen`, `formatSenPlain`, `parseAmountInput`, `SEN_PER_RINGGIT`, `MAX_INPUT_SEN` — integer-sen money helpers
 - `src/utils/recipient.ts` — `maskAccountNumber`, `getInitials`, `filterRecipients`
 - `src/utils/validation.ts` — `validateTransfer`, `checkTransferAllowed`, `getRemainingDailyLimit`, `hasErrors`, `MIN_TRANSFER_SEN`, `NOTE_MAX_LENGTH` — Zod shape rules + balance/limit rules
 - `src/utils/recipient.ts` (added) — `looksLikeAccountNumber`, `isAccountNumberFormat`
-- `src/services/types.ts` — `Recipient`, `Account`, `Bank`, `ApiErrorCode`, `ApiError` (with `attemptsRemaining`), `ApiResult<T>`, `TransferRequest`, `TransferReceipt`
-- `src/services/mock-api.ts` — `getAccount`, `getRecipients`, `lookupAccount`, `transfer`, `verifyPin`, `DEMO_PIN` (246810), `MAX_PIN_ATTEMPTS`, `mockSettings`, `resetMockServer` — in-memory backend with latency, idempotency, server-side checks and magic-value failures
+- `src/services/types.ts` — `Recipient`, `Account`, `Bank`, `ApiErrorCode`, `ApiError` (with `attemptsRemaining`), `ApiResult<T>`, `TransferRequest`, `TransferReceipt`, `Transaction`, `TransactionPage`
+- `src/services/mock-api.ts` — `getAccount`, `getRecipients`, `lookupAccount`, `transfer`, `verifyPin`, `getTransactions` (id cursor), `DEMO_PIN` (246810), `MAX_PIN_ATTEMPTS`, `mockSettings`, `resetMockServer` — in-memory backend with latency, idempotency, server-side checks and magic-value failures
 - `src/services/auth.ts` — `authorizeTransfer(promptMessage)` — Expo Go check, hardware/enrollment check, biometric-only prompt
 - `src/utils/biometrics.ts` — `toAuthorizationResult`, `getPinNotice`, `AuthorizationResult`, `PinReason`
 - `src/utils/transfer.ts` — `isSameTransfer`, `getTransferRecovery`
-- `src/utils/date.ts` — `formatDateTime`
+- `src/utils/date.ts` — `formatDateTime`, `formatTime`
+- `src/utils/transactions.ts` — `buildHistoryRows` (rows + `stickyHeaderIndices`), `formatDayLabel`, `getRecentRecipients`
+- `src/utils/money.ts` (added) — `formatSignedSen`
+- `src/services/mock-history.ts` — `generateHistory` — seeded (deterministic) ~1,000 transactions over ~6 months
 - `src/services/api-error.ts` — `ApiRequestError`, `unwrap`, `isApiErrorCode`, `getErrorMessage`
 - `src/services/mock-data.ts` — `MOCK_ACCOUNT`, `MOCK_RECIPIENTS` (incl. 3 "Test:" failure recipients), `MOCK_ACCOUNT_HOLDER_NAMES` seed data (only `mock-api.ts` imports it)
 - Tests: `src/utils/*.test.ts` (Jest, `jest-expo` preset; `npm test`)
@@ -69,6 +75,7 @@ _Last updated: 2026-11-25 (slice 4: biometrics + PIN fallback)_
 - `zustand` ^5.1.0 — client state for the transfer draft and receipt
 - `expo-crypto` ~58.0.8 — idempotency keys
 - `expo-local-authentication` ~58.0.3 — biometric authorization
+- `@shopify/flash-list` 2.3.2 — recycling list for the history
 - `eslint` ^9 + `eslint-config-expo` ~58.0.4 (dev) — `npx expo lint`
 - `jest` ~30.5.2 + `jest-expo` ~58.0.15 + `@types/jest` 30.0.0 + `@testing-library/react-native` ^14.1.0 (dev) — unit/component tests
 - Kept from template (router peers or likely needed): `expo-constants`, `expo-font`, `expo-linking`, `expo-system-ui`, `react-native-gesture-handler`

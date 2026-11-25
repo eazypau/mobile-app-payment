@@ -201,3 +201,19 @@ It mirrors real banks, which lock the credential until the user re-verifies, rat
 ## Expo Go: skip biometrics and use the PIN, with a notice — 2026-11-25
 **Chose:** detecting Expo Go (`Constants.executionEnvironment`) and going straight to the PIN with an explanation, over calling `authenticateAsync` and letting it fail.
 Face ID isn't supported in Expo Go, and how the call fails there isn't documented, so reviewers could see something confusing. Being explicit keeps the PIN fallback demoable everywhere, and Face ID works in a development build.
+
+## History headers: sticky — 2026-11-25
+**Chose:** date headers that pin to the top while you scroll through that day, over headers that scroll away.
+With around 1,000 transactions, "which day am I looking at?" matters mid-scroll. FlashList supports it through `stickyHeaderIndices`, computed once from the same flattened list it renders.
+
+## Quick re-send: recent-recipient chips, and tapping a past transfer — 2026-11-25
+**Chose:** chips on Send plus tapping an outgoing transfer to open Send prefilled (recipient and amount), over chips only or a separate transaction detail screen.
+It covers the "quick re-send" stretch goal without another screen, and a re-sent transfer still goes through validation, Review and biometrics. The prefill travels through the store, not route params, for the same deep-link reason as the draft.
+
+## Contacts picker: deferred — 2026-11-25
+**Chose:** shipping history and re-send first, and leaving the `expo-contacts` picker until the README and write-up are done.
+Time is limited, and the SDK 58 contacts API is new and class-based, with a permission flow to verify. The write-up describes how it would work: the contact's phone number used as a DuitNow ID, then the same name lookup.
+
+## History cursor: the last item's id, not a page number — 2026-11-25
+**Chose:** "give me what's older than transaction X" over offset pagination ("page 3", or skip 40).
+New transfers land at the top of the history, so between two page loads an offset shifts and the next page repeats a row the user already saw (or skips one in the other direction). An id-based cursor stays correct, and a test proves it by inserting a transfer between two page loads.
