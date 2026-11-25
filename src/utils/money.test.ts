@@ -1,4 +1,4 @@
-import { formatSen, formatSenPlain, MAX_INPUT_SEN, parseAmountInput } from './money';
+import { formatSen, formatSenPlain, formatSignedSen, MAX_INPUT_SEN, parseAmountInput } from './money';
 
 describe('formatSen', () => {
   it('formats sen as ringgit with the currency symbol', () => {
@@ -47,5 +47,12 @@ describe('parseAmountInput (cash-register behaviour)', () => {
 
   it('keeps the previous amount when typing past the maximum', () => {
     expect(parseAmountInput(`${formatSenPlain(MAX_INPUT_SEN)}1`, MAX_INPUT_SEN)).toBe(MAX_INPUT_SEN);
+  });
+});
+
+describe('formatSignedSen', () => {
+  it('marks money out with minus and money in with plus', () => {
+    expect(formatSignedSen(5000, 'out')).toBe('-RM 50.00');
+    expect(formatSignedSen(480000, 'in')).toBe('+RM 4,800.00');
   });
 });

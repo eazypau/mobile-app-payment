@@ -10,3 +10,10 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-MY', {
 export function formatDateTime(iso: string): string {
   return dateTimeFormatter.format(new Date(iso));
 }
+
+const timeFormatter = new Intl.DateTimeFormat('en-MY', { hour: 'numeric', minute: '2-digit' });
+
+/** "2026-11-25T13:14:00Z" → "9:14 pm" (in the device's time zone). */
+export function formatTime(iso: string): string {
+  return timeFormatter.format(new Date(iso));
+}

@@ -43,3 +43,8 @@ export function parseAmountInput(text: string, previousSen: number): number {
   const sen = Number(digits);
   return sen > MAX_INPUT_SEN ? previousSen : sen;
 }
+
+/** For history rows: money out is "-RM 50.00", money in is "+RM 50.00". */
+export function formatSignedSen(sen: number, direction: 'in' | 'out'): string {
+  return `${direction === 'in' ? '+' : '-'}${formatSen(sen)}`;
+}

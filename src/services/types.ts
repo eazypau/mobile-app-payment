@@ -57,3 +57,23 @@ export type TransferReceipt = {
   createdAt: string;
   balanceAfterSen: number;
 };
+
+/** One line in the account history. */
+export type Transaction = {
+  id: string;
+  reference: string;
+  direction: 'in' | 'out';
+  counterpartyName: string;
+  /** Set for outgoing transfers, so they can be sent again. */
+  recipient: Recipient | null;
+  amountSen: number;
+  note: string;
+  /** ISO 8601 timestamp. */
+  createdAt: string;
+};
+
+export type TransactionPage = {
+  items: Transaction[];
+  /** Pass back to get the next (older) page; null when there's nothing more. */
+  nextCursor: string | null;
+};

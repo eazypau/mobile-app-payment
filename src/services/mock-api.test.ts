@@ -3,6 +3,7 @@ import {
   DEMO_PIN,
   getAccount,
   getRecipients,
+  getTransactions,
   lookupAccount,
   mockSettings,
   resetMockServer,
@@ -15,6 +16,7 @@ beforeEach(() => {
   resetMockServer();
   mockSettings.latencyMs = 0;
   mockSettings.simulateAccountLoadFailure = false;
+  mockSettings.simulateHistoryLoadFailure = false;
 });
 
 describe('getAccount', () => {
@@ -176,5 +178,62 @@ describe('verifyPin', () => {
     for (let i = 0; i < 5; i++) await verifyPin('000000');
     resetMockServer();
     expect((await verifyPin(DEMO_PIN)).ok).toBe(true);
+  });
+});
+
+describe('getTransactions', () => {
+  it('returns the newest page first, with a cursor for the next one', async () => {
+    const result = await getTransactions({ cursor: null, limit: 20 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.items).toHaveLength(20);
+    expect(result.data.nextCursor).toBe(result.data.items[19].id);
+
+    const times = result.data.items.map((t) => new Date(t.createdAt).getTime());
+    expect(times).toEqual([...times].sort((a, b) => b - a));
+  });
+
+  it('continues after the cursor without repeating or skipping', async () => {
+    const first = await getTransactions({ cursor: null, limit: 20 });
+    if (!first.ok) throw new Error('expected ok');
+    const second = await getTransactions({ cursor: first.data.nextCursor, limit: 20 });
+    if (!second.ok) throw new Error('expected ok');
+
+    const all = await getTransactions({ cursor: null, limit: 40 });
+    if (!all.ok) throw new Error('expected ok');
+    expect([...first.data.items, ...second.data.items]).toEqual(all.data.items);
+  });
+
+  it('is not thrown off by a new transfer arriving between pages', async () => {
+    const first = await getTransactions({ cursor: null, limit: 20 });
+    if (!first.ok) throw new Error('expected ok');
+    const lastSeen = first.data.items[19];
+
+    await transfer({ idempotencyKey: 'k', recipient: MOCK_RECIPIENTS[0], amountSen: 1000, note: '' });
+
+    const second = await getTransactions({ cursor: first.data.nextCursor, limit: 20 });
+    if (!second.ok) throw new Error('expected ok');
+    expect(second.data.items.map((t) => t.id)).not.toContain(lastSeen.id);
+  });
+
+  it('puts a new transfer at the top of the history', async () => {
+    await transfer({ idempotencyKey: 'k', recipient: MOCK_RECIPIENTS[0], amountSen: 1000, note: 'Hi' });
+    const result = await getTransactions({ cursor: null, limit: 1 });
+    expect(result.ok && result.data.items[0]).toMatchObject({
+      direction: 'out',
+      counterpartyName: MOCK_RECIPIENTS[0].name,
+      amountSen: 1000,
+      note: 'Hi',
+    });
+  });
+
+  it('returns a null cursor on the last page', async () => {
+    const result = await getTransactions({ cursor: null, limit: 5000 });
+    expect(result.ok && result.data.nextCursor).toBeNull();
+  });
+
+  it('fails with NETWORK when the failure flag is on', async () => {
+    mockSettings.simulateHistoryLoadFailure = true;
+    expect(await getTransactions({ cursor: null, limit: 20 })).toEqual({ ok: false, error: { code: 'NETWORK' } });
   });
 });

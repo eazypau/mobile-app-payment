@@ -1,7 +1,17 @@
 import { BANKS } from '@/constants/banks';
 
 import { MOCK_ACCOUNT, MOCK_ACCOUNT_HOLDER_NAMES, MOCK_RECIPIENTS } from './mock-data';
-import type { Account, ApiError, ApiResult, Recipient, TransferReceipt, TransferRequest } from './types';
+import { generateHistory } from './mock-history';
+import type {
+  Account,
+  ApiError,
+  ApiResult,
+  Recipient,
+  Transaction,
+  TransactionPage,
+  TransferReceipt,
+  TransferRequest,
+} from './types';
 
 /**
  * The fake bank backend. Plain async functions with simulated latency that
@@ -17,6 +27,7 @@ import type { Account, ApiError, ApiResult, Recipient, TransferReceipt, Transfer
  *   original receipt instead of paying twice.
  * - Transfer to "Test: Insufficient funds" → INSUFFICIENT_FUNDS, as if the
  *   balance changed somewhere else since the app last loaded it
+ * - History: set `mockSettings.simulateHistoryLoadFailure = true` → NETWORK
  * - App PIN: `246810`. 5 wrong PINs lock transfers until the app reloads.
  */
 
@@ -27,14 +38,19 @@ export const MAX_PIN_ATTEMPTS = 5;
 export const mockSettings = {
   latencyMs: 600,
   simulateAccountLoadFailure: false,
+  simulateHistoryLoadFailure: false,
 };
+
+const SEEDED_HISTORY_COUNT = 1000;
 
 // In-memory "server database", seeded at startup and reset on every reload.
 function createDb() {
   return {
     account: { ...MOCK_ACCOUNT },
     recipients: [...MOCK_RECIPIENTS],
-    transactions: [] as TransferReceipt[],
+    /** Newest first. */
+    transactions: generateHistory(SEEDED_HISTORY_COUNT, new Date()),
+    transferCount: 0,
     /** idempotency key → the receipt that key produced */
     processedKeys: new Map<string, TransferReceipt>(),
     failedPinAttempts: 0,
@@ -110,15 +126,25 @@ export async function transfer(request: TransferRequest): Promise<ApiResult<Tran
   db.account.balanceSen -= amountSen;
   db.account.spentTodaySen += amountSen;
 
+  db.transferCount += 1;
   const receipt: TransferReceipt = {
-    reference: `TX${String(db.transactions.length + 1).padStart(6, '0')}`,
+    reference: `TX${String(db.transferCount).padStart(6, '0')}`,
     recipient,
     amountSen,
     note: request.note,
     createdAt: new Date().toISOString(),
     balanceAfterSen: db.account.balanceSen,
   };
-  db.transactions.push(receipt);
+  db.transactions.unshift({
+    id: `tx-${db.transferCount}`,
+    reference: receipt.reference,
+    direction: 'out',
+    counterpartyName: recipient.name,
+    recipient,
+    amountSen,
+    note: receipt.note,
+    createdAt: receipt.createdAt,
+  });
   db.processedKeys.set(request.idempotencyKey, receipt);
 
   // The money moved, but the app never hears back.
@@ -145,4 +171,27 @@ export async function verifyPin(pin: string): Promise<ApiResult<{ verified: true
   const attemptsRemaining = MAX_PIN_ATTEMPTS - db.failedPinAttempts;
   if (attemptsRemaining === 0) return fail('PIN_LOCKED');
   return fail('INVALID_PIN', { attemptsRemaining });
+}
+
+/**
+ * One page of history, newest first. The cursor is the id of the last item
+ * the client has, not a page number: if a new transfer lands at the top
+ * between two page loads, an offset would shift and repeat a row, but
+ * "everything older than this item" stays correct.
+ */
+export async function getTransactions({
+  cursor,
+  limit,
+}: {
+  cursor: string | null;
+  limit: number;
+}): Promise<ApiResult<TransactionPage>> {
+  await wait();
+  if (mockSettings.simulateHistoryLoadFailure) return fail('NETWORK');
+
+  const start = cursor === null ? 0 : db.transactions.findIndex((transaction) => transaction.id === cursor) + 1;
+  const items: Transaction[] = db.transactions.slice(start, start + limit);
+  const hasMore = start + limit < db.transactions.length;
+
+  return ok({ items, nextCursor: hasMore ? items[items.length - 1].id : null });
 }
