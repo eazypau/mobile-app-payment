@@ -157,3 +157,7 @@ Name-enumeration abuse is stopped by server-side rate limiting, not by the UI, s
 ## Result union meets TanStack Query: `unwrap()` at the query boundary — 2026-11-25
 **Chose:** keeping the mock API's `ApiResult` union and converting a failure into a thrown `ApiRequestError` (which keeps its `code`) inside each query function, over treating `{ ok: false }` as successful data or switching the API to throwing.
 TanStack Query only sees a failure, and only retries or shows `isError`, when the query function throws, so the conversion has to happen somewhere. Doing it in one `unwrap()` keeps the service layer framework-free, and `getErrorMessage()` still switches over every error code with a `never` check.
+
+## iOS 26+ glass header: `contentInsetAdjustmentBehavior="automatic"` — 2026-11-25
+**Chose:** letting iOS inset each screen's `ScrollView` below the header, over forcing `headerTransparent: false` or padding screens by a hard-coded header height.
+On iOS 26+, Expo Router's native header is transparent "Liquid Glass" by default and content sits underneath it, which hid the balance card. The automatic inset is the platform convention: content starts below the bar and still scrolls under the glass, while a fixed padding would break across devices, modals and large titles.

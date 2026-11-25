@@ -28,6 +28,9 @@ export default function HomeScreen() {
   return (
     <Screen>
       <ScrollView
+        // iOS 26+ draws a transparent "Liquid Glass" header over the screen. This lets iOS
+        // inset the content below it, while still scrolling underneath the glass.
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isPullRefreshing} onRefresh={handlePullRefresh} />}>
         <Card>

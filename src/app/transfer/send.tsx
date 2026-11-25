@@ -103,6 +103,8 @@ function SendForm({ account }: { account: Account }) {
         keyboardVerticalOffset={headerHeight}
         style={styles.flex}>
         <ScrollView
+          // Inset content below the transparent iOS 26+ header (see Home).
+          contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.form}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag">
