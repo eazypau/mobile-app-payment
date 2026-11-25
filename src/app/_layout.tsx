@@ -5,6 +5,12 @@ import { AppState, useColorScheme } from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
 
+// Deep links straight into /transfer/... still get Home underneath the modal,
+// so closing it lands somewhere sensible instead of an empty stack.
+export const unstable_settings = {
+  anchor: 'index',
+};
+
 // Created once, outside any component, so re-renders never throw away the cache.
 const queryClient = new QueryClient({
   defaultOptions: {
