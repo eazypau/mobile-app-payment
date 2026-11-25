@@ -5,6 +5,11 @@ A secure money-transfer module for a digital banking app, built with React Nativ
 - **Design write-up:** [WRITEUP.md](WRITEUP.md), covering architecture, security, decisions and challenges
 - **Decision log:** [DECISIONS.md](DECISIONS.md), with every "A over B" choice and why
 
+## Demo
+
+- **[Main flow](docs/media/general-flow.mp4)**: sending money from start to finish, including biometric confirmation and the receipt
+- **[Error handling](docs/media/error-handling-send.mp4)**: validation errors on the Send screen and failed transfers
+
 ## Running it
 
 You'll need Node.js (I used v24) and npm.
