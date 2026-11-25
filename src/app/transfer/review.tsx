@@ -37,6 +37,9 @@ function ReviewContent({ draft }: { draft: TransferRequest }) {
   const [authError, setAuthError] = useState<string | null>(null);
   // null = PIN sheet closed; otherwise it's open, with an optional notice explaining why.
   const [pinSheet, setPinSheet] = useState<{ notice: string | null } | null>(null);
+  // iOS doesn't always show our "Use PIN" button in its Face ID dialog, so once biometrics
+  // are cancelled or fail, offer the app PIN on our own screen too. No dead ends.
+  const [showPinOption, setShowPinOption] = useState(false);
 
   const isBusy = isAuthorizing || sendTransfer.isPending;
   const recovery = sendTransfer.isError ? getTransferRecovery(sendTransfer.error) : null;
@@ -73,13 +76,15 @@ function ReviewContent({ draft }: { draft: TransferRequest }) {
         send();
         break;
       case 'cancelled':
-        // The user backed out on purpose: no error, just stay here.
+        // The user backed out on purpose: no error, just stay here (with the PIN as an option).
+        setShowPinOption(true);
         break;
       case 'needs_pin':
         setPinSheet({ notice: getPinNotice(result.reason) });
         break;
       case 'failed':
-        setAuthError("We couldn't confirm it's you. Try again.");
+        setAuthError("We couldn't confirm it's you. Try again, or use your app PIN.");
+        setShowPinOption(true);
         break;
     }
   }
@@ -139,7 +144,12 @@ function ReviewContent({ draft }: { draft: TransferRequest }) {
         // Same draft, same idempotency key: if the first attempt did go through, the server returns it instead of paying twice.
         <Button title="Try again" onPress={send} loading={isBusy} />
       ) : (
-        <Button title="Confirm and send" onPress={handleConfirm} loading={isBusy} />
+        <>
+          <Button title="Confirm and send" onPress={handleConfirm} loading={isBusy} />
+          {showPinOption && !isBusy && (
+            <Button title="Use app PIN instead" variant="ghost" onPress={() => setPinSheet({ notice: null })} />
+          )}
+        </>
       )}
 
       <PinSheet

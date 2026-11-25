@@ -10,7 +10,7 @@ _Last updated: 2026-11-25 (slice 6: screen test, README, write-up)_
 - Root layout — `src/app/_layout.tsx` — `unstable_settings.anchor = 'index'` (Home under deep-linked modals), `QueryClientProvider` + `AppState` focus wiring, `Stack` in a token-fed `ThemeProvider`; `transfer` group presented as a modal
 - `/transfer/*` layout — `src/app/transfer/_layout.tsx` — nested `Stack` for the transfer flow (closing it discards the flow)
 - `/transfer/send` — `src/app/transfer/send.tsx` — waits for `useAccount`, then `SendForm`: recipient, cash-register amount, note (local `useState`), inline validation errors; "Review" saves the draft
-- `/transfer/review` — `src/app/transfer/review.tsx` — summary, `authorizeTransfer()` (biometrics) or `PinSheet`, then `useSendTransfer`; inline errors with Try again / Edit transfer; back locked while busy; redirects Home without a draft
+- `/transfer/review` — `src/app/transfer/review.tsx` — summary, `authorizeTransfer()` (biometrics) or `PinSheet` (also via "Use app PIN instead" after a cancel/failure), then `useSendTransfer`; inline errors with Try again / Edit transfer; back locked while busy; redirects Home without a draft
 - `/transfer/success` — `src/app/transfer/success.tsx` — animated receipt, Share, Done (`router.dismissTo('/')`); no back; redirects Home without a receipt
 
 ## Components

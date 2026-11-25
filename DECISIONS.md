@@ -221,3 +221,7 @@ New transfers land at the top of the history, so between two page loads an offse
 ## Write-up: a separate `WRITEUP.md` — 2026-11-25
 **Chose:** a narrative `WRITEUP.md` (architecture, decisions, security, challenges, next steps) next to a short, practical README, over one long README.
 Reviewers need the setup steps first, and a long design essay would bury them. The write-up links to `DECISIONS.md` for the full decision log.
+
+## PIN access on Review: shown after a biometric cancel or failure — 2026-11-25
+**Chose:** a secondary "Use app PIN instead" button that appears once Face ID is cancelled or fails, over keeping it always visible or relying only on iOS's own fallback button.
+On the iOS 27 Simulator, the "Face Not Recognized" dialog showed no fallback button even though `fallbackLabel` is set, which left only "retry forever" or Cancel. Showing our own option after the first miss removes that dead end, while keeping biometrics as the default, stronger path.
