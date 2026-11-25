@@ -44,7 +44,8 @@ export default function RootLayout() {
         <StatusBar style="auto" />
         <Stack>
           <Stack.Screen name="index" options={{ title: 'Home' }} />
-          <Stack.Screen name="transfer" options={{ presentation: 'modal', headerShown: false }} />
+          {/* No swipe-down to dismiss: it could close the flow mid-transfer. Use ✕ or Done. */}
+          <Stack.Screen name="transfer" options={{ presentation: 'modal', headerShown: false, gestureEnabled: false }} />
         </Stack>
       </ThemeProvider>
     </QueryClientProvider>

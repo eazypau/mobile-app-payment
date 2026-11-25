@@ -161,3 +161,27 @@ TanStack Query only sees a failure, and only retries or shows `isError`, when th
 ## iOS 26+ glass header: `contentInsetAdjustmentBehavior="automatic"` — 2026-11-25
 **Chose:** letting iOS inset each screen's `ScrollView` below the header, over forcing `headerTransparent: false` or padding screens by a hard-coded header height.
 On iOS 26+, Expo Router's native header is transparent "Liquid Glass" by default and content sits underneath it, which hid the balance card. The automatic inset is the platform convention: content starts below the bar and still scrolls under the glass, while a fixed padding would break across devices, modals and large titles.
+
+## Receipt: in the Zustand store next to the draft — 2026-11-25
+**Chose:** keeping the last receipt in the store, over passing a transaction id to Success and fetching the receipt again.
+It follows the "no transfer data in route params" rule without an extra endpoint or loading state, and a deep link to Success with no receipt just redirects Home. Fetching by id is more server-authoritative and is the production path once there's a real transaction endpoint.
+
+## Idempotency key: `expo-crypto` `randomUUID()` — 2026-11-25
+**Chose:** a cryptographically random UUID over a timestamp plus `Math.random()`.
+The key is what stops a retried transfer from paying twice, so it must not collide, and `Math.random()` gives no such guarantee. It's created when the draft is saved, reused on "Try again", and replaced only if the draft actually changes.
+
+## Transfer failure demo: magic test recipients — 2026-11-25
+**Chose:** seeded recipients named "Test: Network error", "Test: Timeout" and "Test: Insufficient funds", over magic amounts.
+Reviewers find them right in the picker without reading the README first, and any amount works with them. The cost is a few test entries in the saved list, which are clearly labelled.
+
+## Transfer modal: no swipe-down to dismiss — 2026-11-25
+**Chose:** turning off the modal's dismiss gesture for the whole flow, over toggling it only while a transfer is in flight.
+A swipe that closes the flow mid-transfer would leave the user unsure whether money moved, and toggling a parent navigator's option from a child screen adds code for little gain. The flow still has explicit exits: ✕ on Send and Done on Success.
+
+## Retry after a failure: no second biometric prompt — 2026-11-25
+**Chose:** "Try again" resends the same draft directly, over asking the user to authorize again.
+The user already authorized this exact transfer, and the same idempotency key means a retry can't become a second payment. Slice 4 may revisit this if authorization becomes bound to a single request (for example a server challenge that expires).
+
+## Flow state reset: when Home starts a new transfer — 2026-11-25
+**Chose:** clearing the draft and receipt when "Send money" is tapped, over clearing them in a `useEffect` cleanup when Success unmounts.
+It's an event, so it belongs in the event handler: no effect timing to reason about, and React's development double-invoked effects can't wipe the receipt while Success is still showing. A stale draft left in memory is harmless, because its idempotency key would only replay the original receipt.

@@ -11,6 +11,9 @@ export default function TransferLayout() {
   return (
     <Stack>
       <Stack.Screen name="send" options={{ title: 'Send money', headerLeft: () => <HeaderCloseButton /> }} />
+      <Stack.Screen name="review" options={{ title: 'Review' }} />
+      {/* No way "back" from a finished transfer: only Done, which closes the whole flow. */}
+      <Stack.Screen name="success" options={{ title: 'Transfer sent', headerBackVisible: false, gestureEnabled: false }} />
     </Stack>
   );
 }

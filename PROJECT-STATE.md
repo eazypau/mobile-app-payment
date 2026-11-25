@@ -2,13 +2,15 @@
 
 An index of what exists. Reasoning lives in `DECISIONS.md`.
 
-_Last updated: 2026-11-25 (slice 3a: mock API reads + server state)_
+_Last updated: 2026-11-25 (slice 3b: transfer, Review, Success)_
 
 ## Routes
 - `/` — `src/app/index.tsx` — Home: balance via `useAccount` (skeleton / error card / stale notice), pull-to-refresh, "Send money" → `/transfer/send`
 - Root layout — `src/app/_layout.tsx` — `QueryClientProvider` + `AppState` focus wiring, `Stack` in a token-fed `ThemeProvider`; `transfer` group presented as a modal
 - `/transfer/*` layout — `src/app/transfer/_layout.tsx` — nested `Stack` for the transfer flow (closing it discards the flow)
-- `/transfer/send` — `src/app/transfer/send.tsx` — waits for `useAccount`, then `SendForm`: recipient, cash-register amount, note (local `useState`), inline validation errors
+- `/transfer/send` — `src/app/transfer/send.tsx` — waits for `useAccount`, then `SendForm`: recipient, cash-register amount, note (local `useState`), inline validation errors; "Review" saves the draft
+- `/transfer/review` — `src/app/transfer/review.tsx` — summary, `authorizeTransfer()` then `useSendTransfer`; inline errors with Try again / Edit transfer; back locked while busy; redirects Home without a draft
+- `/transfer/success` — `src/app/transfer/success.tsx` — animated receipt, Share, Done (`router.dismissTo('/')`); no back; redirects Home without a receipt
 
 ## Components
 - `Screen` — `src/components/ui/screen.tsx` — screen root: themed background, padding, bottom safe area
@@ -21,38 +23,48 @@ _Last updated: 2026-11-25 (slice 3a: mock API reads + server state)_
 - `AccountLookup` — `src/components/account-lookup.tsx` — bank chips + debounced, gated name lookup + confirm card
 - `Skeleton` — `src/components/ui/skeleton.tsx` — grey placeholder bar while loading
 - `HeaderCloseButton` — `src/components/header-close-button.tsx` — ✕ that closes the transfer modal
+- `DetailRow` — `src/components/detail-row.tsx` — label/value row for the Review summary and the receipt
 - `FieldError` — `src/components/field-error.tsx` — inline danger message with icon, announced to screen readers
 
 ## Hooks
 - `useTheme` — `src/hooks/use-theme.ts` — returns the light/dark color tokens for the system scheme
 - `useShake` — `src/hooks/use-shake.ts` — Reanimated horizontal shake: `{ style, shake }`
-- `useAccount`, `useRecipients`, `useAccountLookup`, `queryKeys` — `src/hooks/queries.ts` — all TanStack Query reads
+- `useAccount`, `useRecipients`, `useAccountLookup`, `useSendTransfer`, `queryKeys` — `src/hooks/queries.ts` — all TanStack Query calls (transfer: `retry: false`, invalidates the account)
+
+## Store
+- `useTransferStore` — `src/store/transfer-store.ts` — Zustand: `draft` (a `TransferRequest` with idempotency key), `receipt`, `saveDraft`, `setReceipt`, `reset`
 
 ## Services & utils
 - `src/utils/money.ts` — `formatSen`, `formatSenPlain`, `parseAmountInput`, `SEN_PER_RINGGIT`, `MAX_INPUT_SEN` — integer-sen money helpers
 - `src/utils/recipient.ts` — `maskAccountNumber`, `getInitials`, `filterRecipients`
 - `src/utils/validation.ts` — `validateTransfer`, `checkTransferAllowed`, `getRemainingDailyLimit`, `hasErrors`, `MIN_TRANSFER_SEN`, `NOTE_MAX_LENGTH` — Zod shape rules + balance/limit rules
 - `src/utils/recipient.ts` (added) — `looksLikeAccountNumber`, `isAccountNumberFormat`
-- `src/services/types.ts` — `Recipient`, `Account`, `Bank`, `ApiErrorCode`, `ApiResult<T>`
-- `src/services/mock-api.ts` — `getAccount`, `getRecipients`, `lookupAccount`, `mockSettings` — in-memory backend with latency + magic-value failures
+- `src/services/types.ts` — `Recipient`, `Account`, `Bank`, `ApiErrorCode`, `ApiResult<T>`, `TransferRequest`, `TransferReceipt`
+- `src/services/mock-api.ts` — `getAccount`, `getRecipients`, `lookupAccount`, `transfer`, `mockSettings`, `resetMockServer` — in-memory backend with latency, idempotency, server-side checks and magic-value failures
+- `src/services/auth.ts` — `authorizeTransfer()` — the authorization seam (stub until slice 4)
+- `src/utils/transfer.ts` — `isSameTransfer`, `getTransferRecovery`
+- `src/utils/date.ts` — `formatDateTime`
 - `src/services/api-error.ts` — `ApiRequestError`, `unwrap`, `isApiErrorCode`, `getErrorMessage`
-- `src/services/mock-data.ts` — `MOCK_ACCOUNT`, `MOCK_RECIPIENTS`, `MOCK_ACCOUNT_HOLDER_NAMES` seed data (only `mock-api.ts` imports it)
+- `src/services/mock-data.ts` — `MOCK_ACCOUNT`, `MOCK_RECIPIENTS` (incl. 3 "Test:" failure recipients), `MOCK_ACCOUNT_HOLDER_NAMES` seed data (only `mock-api.ts` imports it)
 - Tests: `src/utils/*.test.ts` (Jest, `jest-expo` preset; `npm test`)
 
 ## Native capabilities
 - `expo-symbols` — `SymbolView` icons (SF Symbols iOS / Material Symbols Android) — dev build? n
-- `expo-haptics` — error haptic on invalid amount / Review — dev build? n
+- `expo-haptics` — error/success haptics — dev build? n
+- `expo-crypto` — `randomUUID()` idempotency keys — dev build? n
 
 ## Dependencies
 - `expo` ~58.0.26, `react-native` 0.88.1, `react` 19.3.0 — platform
 - `expo-router` ~58.0.32 — file-based navigation (Stack)
 - `react-native-safe-area-context` ~5.11.1 — `SafeAreaView` in `Screen`
 - `expo-status-bar` ~58.0.5 — status bar style follows light/dark
-- `react-native-reanimated` 4.7.1 + `react-native-worklets` 0.13.0 — `useShake`; planned: success check animation
+- `react-native-reanimated` 4.7.1 + `react-native-worklets` 0.13.0 — `useShake`, `ZoomIn` success checkmark
 - `expo-symbols` ~58.0.5 — icons
 - `expo-haptics` ~58.0.8 — haptic feedback
 - `zod` ^4.6.7 — shape validation for the transfer form
-- `@tanstack/react-query` ^5.108.4 — server state (account, recipients, lookups)
+- `@tanstack/react-query` ^5.108.4 — server state (account, recipients, lookups, transfer mutation)
+- `zustand` ^5.1.0 — client state for the transfer draft and receipt
+- `expo-crypto` ~58.0.8 — idempotency keys
 - `eslint` ^9 + `eslint-config-expo` ~58.0.4 (dev) — `npx expo lint`
 - `jest` ~30.5.2 + `jest-expo` ~58.0.15 + `@types/jest` 30.0.0 + `@testing-library/react-native` ^14.1.0 (dev) — unit/component tests
 - Kept from template (router peers or likely needed): `expo-constants`, `expo-font`, `expo-linking`, `expo-system-ui`, `react-native-gesture-handler`
@@ -70,4 +82,4 @@ _Last updated: 2026-11-25 (slice 3a: mock API reads + server state)_
 - Money is always integer sen; only `utils/money.ts` converts to ringgit text
 - Tests sit next to the code as `*.test.ts`; `src/app/` holds routes only
 - Form errors are derived on render from `validateTransfer`, never stored in state
-- Server data comes only through `hooks/queries.ts`; UI never imports `mock-data.ts`. Zustand is reserved for the draft (slice 3b)
+- Server data comes only through `hooks/queries.ts`; UI never imports `mock-data.ts`. Zustand holds only the draft and receipt

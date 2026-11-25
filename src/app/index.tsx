@@ -11,10 +11,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Spacing } from '@/constants/theme';
 import { useAccount } from '@/hooks/queries';
 import { getErrorMessage } from '@/services/api-error';
+import { useTransferStore } from '@/store/transfer-store';
 import { formatSen } from '@/utils/money';
 
 export default function HomeScreen() {
   const account = useAccount();
+  const resetTransfer = useTransferStore((state) => state.reset);
+
+  function startTransfer() {
+    // A new flow: forget any previous draft (and its idempotency key) and receipt.
+    resetTransfer();
+    router.push('/transfer/send');
+  }
 
   // Only show the pull-to-refresh spinner for a pull, not for background refetches.
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
@@ -62,7 +70,7 @@ export default function HomeScreen() {
           )}
         </Card>
 
-        <Button title="Send money" onPress={() => router.push('/transfer/send')} disabled={!account.data} />
+        <Button title="Send money" onPress={startTransfer} disabled={!account.data} />
       </ScrollView>
     </Screen>
   );

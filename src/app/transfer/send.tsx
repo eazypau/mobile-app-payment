@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
@@ -18,6 +19,7 @@ import { useShake } from '@/hooks/use-shake';
 import { useTheme } from '@/hooks/use-theme';
 import { getErrorMessage } from '@/services/api-error';
 import type { Account, Recipient } from '@/services/types';
+import { useTransferStore } from '@/store/transfer-store';
 import { formatSen } from '@/utils/money';
 import {
   checkTransferAllowed,
@@ -55,8 +57,9 @@ function SendForm({ account }: { account: Account }) {
   const colors = useTheme();
   const headerHeight = useHeaderHeight();
   const amountShake = useShake();
+  const saveDraft = useTransferStore((state) => state.saveDraft);
 
-  // Form state stays local while typing; it's written to the store only on "Review" (slice 3).
+  // Form state stays local while typing; it's written to the store only on "Review".
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [amountSen, setAmountSen] = useState(0);
   const [note, setNote] = useState('');
@@ -92,7 +95,11 @@ function SendForm({ account }: { account: Account }) {
       return;
     }
 
-    // Slice 3b: save the draft to the store and open the Review screen.
+    // Validation passed, so the recipient is set.
+    if (recipient) {
+      saveDraft({ recipient, amountSen, note });
+      router.push('/transfer/review');
+    }
   }
 
   return (
