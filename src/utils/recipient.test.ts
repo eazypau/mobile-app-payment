@@ -1,6 +1,12 @@
 import type { Recipient } from '@/services/types';
 
-import { filterRecipients, getInitials, maskAccountNumber } from './recipient';
+import {
+  filterRecipients,
+  getInitials,
+  isAccountNumberFormat,
+  looksLikeAccountNumber,
+  maskAccountNumber,
+} from './recipient';
 
 const recipients: Recipient[] = [
   { id: '1', name: 'Aisyah Ahmad', bankName: 'Maybank', accountNumber: '114402394821' },
@@ -41,5 +47,31 @@ describe('filterRecipients', () => {
 
   it('returns nothing when there is no match', () => {
     expect(filterRecipients(recipients, 'zzz')).toEqual([]);
+  });
+});
+
+describe('looksLikeAccountNumber', () => {
+  it('is true for digits only', () => {
+    expect(looksLikeAccountNumber('8001')).toBe(true);
+    expect(looksLikeAccountNumber(' 8001 ')).toBe(true);
+  });
+
+  it('is false for names or mixed text', () => {
+    expect(looksLikeAccountNumber('Tan')).toBe(false);
+    expect(looksLikeAccountNumber('800-1')).toBe(false);
+    expect(looksLikeAccountNumber('')).toBe(false);
+  });
+});
+
+describe('isAccountNumberFormat', () => {
+  it('accepts 10 to 16 digits', () => {
+    expect(isAccountNumberFormat('1234567890')).toBe(true);
+    expect(isAccountNumberFormat('1234567890123456')).toBe(true);
+  });
+
+  it('rejects too short, too long, or non-digits', () => {
+    expect(isAccountNumberFormat('123456789')).toBe(false);
+    expect(isAccountNumberFormat('12345678901234567')).toBe(false);
+    expect(isAccountNumberFormat('12345abcde')).toBe(false);
   });
 });

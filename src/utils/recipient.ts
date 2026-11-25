@@ -27,3 +27,13 @@ export function filterRecipients(recipients: Recipient[], query: string): Recipi
       recipient.accountNumber.includes(needle),
   );
 }
+
+/** True when the search text is only digits, i.e. the user is typing an account number. */
+export function looksLikeAccountNumber(text: string): boolean {
+  return /^\d+$/.test(text.trim());
+}
+
+/** Malaysian account numbers are roughly 10–16 digits depending on the bank (a heuristic, not per-bank rules). */
+export function isAccountNumberFormat(text: string): boolean {
+  return /^\d{10,16}$/.test(text.trim());
+}

@@ -1,9 +1,6 @@
 import type { Account, Recipient } from './types';
 
-/**
- * Seed data for the mock backend. Slice 3a moves this behind async
- * mock API functions; for now the UI imports it directly.
- */
+/** Seed data for the mock backend. The UI reaches it only through `mock-api.ts`. */
 
 // RM 2,500 already spent today leaves RM 7,500 of the daily limit, which is
 // less than the balance. So RM 8,000 hits the daily limit, and RM 13,000
@@ -23,4 +20,16 @@ export const MOCK_RECIPIENTS: Recipient[] = [
   { id: 'r6', name: 'Nurul Izzah', bankName: 'Bank Islam', accountNumber: '12029010234567' },
   { id: 'r7', name: 'Rajesh Kumar', bankName: 'AmBank', accountNumber: '8881023456789' },
   { id: 'r8', name: 'Chong Kah Hoe', bankName: 'Maybank', accountNumber: '162011558890' },
+];
+
+/** Registered names the mock lookup can return (banks show them in capitals). */
+export const MOCK_ACCOUNT_HOLDER_NAMES = [
+  'TAN WEI JIE',
+  'NUR AISYAH BINTI ROSLAN',
+  'KUMAR A/L RAJAN',
+  'WONG KAH WAI',
+  'AHMAD FARID BIN YUSOF',
+  'SITI NORHAYATI BINTI OMAR',
+  'LEE CHONG MING',
+  'DEVI A/P SUBRAMANIAM',
 ];
