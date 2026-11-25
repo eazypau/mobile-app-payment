@@ -2,7 +2,7 @@ import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useState } from 'react';
-import { ActivityIndicator, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { FieldError } from '@/components/field-error';
 import { TransactionRow } from '@/components/transaction-row';
@@ -25,6 +25,14 @@ export default function HistoryScreen() {
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   const transactions = history.data?.pages.flatMap((page) => page.items) ?? [];
+
+  // iOS 26+ draws a transparent header *over* the list, so day headers must pin below it
+  // rather than under it. The offset is measured from the list's top, which starts
+  // Spacing.md lower (Screen's padding), so subtract that or rows show through a strip
+  // above the pinned header. Android's header is opaque and the list already starts
+  // below it, so no offset there. (No contentInsetAdjustmentBehavior on this list: with
+  // both, the header height was applied twice and left a large gap at the top.)
+  const stickyOffset = Platform.OS === 'ios' ? headerHeight - Spacing.md : 0;
   const { rows, stickyHeaderIndices } = buildHistoryRows(transactions, new Date());
 
   function resend(transaction: Transaction) {
@@ -105,9 +113,7 @@ export default function HistoryScreen() {
           )
         }
         stickyHeaderIndices={stickyHeaderIndices}
-        // Pin headers below the transparent iOS 26+ header, not underneath it.
-        stickyHeaderConfig={{ offset: headerHeight }}
-        contentInsetAdjustmentBehavior="automatic"
+        stickyHeaderConfig={{ offset: stickyOffset }}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter()}

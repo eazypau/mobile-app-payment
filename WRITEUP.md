@@ -69,7 +69,7 @@ src/services, src/utils     Plain TypeScript: money, validation, limits, idempot
 
 ## Challenges
 
-- **iOS 26's "Liquid Glass" header** is transparent by default, and content was sitting underneath it, which hid the balance. The fix was the platform convention (`contentInsetAdjustmentBehavior="automatic"`), not hard-coded padding. Sticky history headers needed the header height as an explicit offset.
+- **iOS 26's "Liquid Glass" header** is transparent by default, and content was sitting underneath it, which hid the balance. The fix was the platform convention (`contentInsetAdjustmentBehavior="automatic"`), not hard-coded padding. History was trickier: its sticky day headers need the header height as an offset (`stickyHeaderConfig.offset`), or they pin *under* the glass. With both the offset and the automatic inset, the height was applied twice and left a large gap at the top. So History uses only the sticky offset, minus `Screen`'s top padding (the offset is measured from the list, not the screen), and only on iOS, since Android's header is opaque.
 - **`Intl` isn't identical everywhere.** Currency formatting put a non-breaking space after "RM" under Jest but a normal space in Node, and Hermes on a phone has its own `Intl` implementation. I now format the number with `Intl` and add the "RM " prefix myself.
 - **A typed result union vs TanStack Query.** I wanted error codes the compiler checks, and TanStack Query wants query functions that throw. One `unwrap()` at the boundary gives both.
 - **Reanimated's Jest mock is broken in 4.7.1.** It loads the real library, which throws under Jest, and Expo Router's test setup silently replaces it with an empty object. I added a small local mock covering only the APIs the app uses.
