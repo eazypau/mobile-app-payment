@@ -6,3 +6,10 @@ export type Recipient = {
   bankName: string;
   accountNumber: string;
 };
+
+/** What the client knows about the user's account. The server owns these numbers. */
+export type Account = {
+  balanceSen: number;
+  dailyLimitSen: number;
+  spentTodaySen: number;
+};

@@ -8,13 +8,14 @@ import { formatSenPlain, parseAmountInput } from '@/utils/money';
 type AmountInputProps = {
   valueSen: number;
   onChangeSen: (sen: number) => void;
+  hasError?: boolean;
 };
 
 /**
  * Cash-register style amount input: digits fill in from the right, so
  * typing 5, 0, 0, 0 shows 50.00. All parsing lives in `parseAmountInput`.
  */
-export function AmountInput({ valueSen, onChangeSen }: AmountInputProps) {
+export function AmountInput({ valueSen, onChangeSen, hasError = false }: AmountInputProps) {
   const colors = useTheme();
   const text = formatSenPlain(valueSen);
 
@@ -32,7 +33,7 @@ export function AmountInput({ valueSen, onChangeSen }: AmountInputProps) {
         // Hide copy/paste: pasting "50" would mean 50 sen, which surprises people.
         contextMenuHidden
         accessibilityLabel="Amount in ringgit"
-        style={[styles.input, { color: colors.text }]}
+        style={[styles.input, { color: hasError ? colors.danger : colors.text }]}
       />
     </View>
   );

@@ -1,11 +1,18 @@
-import type { Recipient } from './types';
+import type { Account, Recipient } from './types';
 
 /**
  * Seed data for the mock backend. Slice 3a moves this behind async
  * mock API functions; for now the UI imports it directly.
  */
 
-export const MOCK_BALANCE_SEN = 1_248_050; // RM 12,480.50
+// RM 2,500 already spent today leaves RM 7,500 of the daily limit, which is
+// less than the balance. So RM 8,000 hits the daily limit, and RM 13,000
+// hits the balance: both errors can be demoed.
+export const MOCK_ACCOUNT: Account = {
+  balanceSen: 1_248_050, // RM 12,480.50
+  dailyLimitSen: 1_000_000, // RM 10,000.00
+  spentTodaySen: 250_000, // RM 2,500.00
+};
 
 export const MOCK_RECIPIENTS: Recipient[] = [
   { id: 'r1', name: 'Aisyah Ahmad', bankName: 'Maybank', accountNumber: '114402394821' },

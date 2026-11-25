@@ -121,3 +121,19 @@ This is what Expo's SDK 58 guide prescribes for Android edge-to-edge, where the 
 ## Icons: `expo-symbols` — 2026-11-24
 **Chose:** `SymbolView` from `expo-symbols` over `@expo/vector-icons` or `@react-native-vector-icons`.
 `SymbolView` renders native SF Symbols on iOS and Material Symbols on Android, it's already installed, and it runs in Expo Go. Expo's icons guide says `@expo/vector-icons` "will be deprecated and is not recommended".
+
+## Error timing: "reward early, punish late" — 2026-11-25
+**Chose:** balance and limit errors shown live while typing, with "required" errors held back until the first Review tap, over validating on blur or only on submit.
+Users need to know "you can't send that much" before they tap, but being scolded about a field they haven't reached yet feels hostile. Errors are derived on every render rather than stored, so fixing a field clears its message right away and can never go stale.
+
+## Review button: always enabled — 2026-11-25
+**Chose:** an enabled button that reveals errors (with an error haptic) when tapped, over disabling it until the form is valid.
+A disabled button is common on web, but a screen reader just says "dimmed" without saying what's missing. Tapping it and seeing the errors explains itself to everyone.
+
+## Transfer limits: RM 1.00 minimum and RM 10,000 per day — 2026-11-25
+**Chose:** a minimum plus a daily limit (with RM 2,500 already spent in the seed data) over a separate per-transfer cap or a balance check only.
+It covers the realistic failures a reviewer will try (too little, more than the balance, over the limit) without a redundant fourth rule. The balance is checked before the limit, and the seed numbers make both errors reachable: RM 8,000 hits the limit, and RM 13,000 hits the balance.
+
+## Zod: the classic API — 2026-11-25
+**Chose:** `zod` (`z.string().max(140)`) over `zod/mini` (`z.string().check(z.maxLength(140))`).
+The chainable API is what reviewers recognize, and `zod/mini`'s size savings don't matter for one small schema.

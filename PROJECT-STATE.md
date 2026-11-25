@@ -2,13 +2,13 @@
 
 An index of what exists. Reasoning lives in `DECISIONS.md`.
 
-_Last updated: 2026-11-24 (slice 1: money + Send form UI)_
+_Last updated: 2026-11-25 (slice 2: validation)_
 
 ## Routes
 - `/` — `src/app/index.tsx` — Home: seed balance card + "Send money" → `/transfer/send`
 - Root layout — `src/app/_layout.tsx` — `Stack` in a token-fed `ThemeProvider`; `transfer` group presented as a modal
 - `/transfer/*` layout — `src/app/transfer/_layout.tsx` — nested `Stack` for the transfer flow (closing it discards the flow)
-- `/transfer/send` — `src/app/transfer/send.tsx` — Send form: recipient, cash-register amount, note (local `useState`)
+- `/transfer/send` — `src/app/transfer/send.tsx` — Send form: recipient, cash-register amount, note (local `useState`), inline validation errors
 
 ## Components
 - `Screen` — `src/components/ui/screen.tsx` — screen root: themed background, padding, bottom safe area
@@ -19,27 +19,33 @@ _Last updated: 2026-11-24 (slice 1: money + Send form UI)_
 - `RecipientRow` — `src/components/recipient-row.tsx` — initials avatar, name, bank + masked account, optional chevron
 - `RecipientPicker` — `src/components/recipient-picker.tsx` — RN `Modal` (iOS pageSheet) with search + `FlatList`
 - `HeaderCloseButton` — `src/components/header-close-button.tsx` — ✕ that closes the transfer modal
+- `FieldError` — `src/components/field-error.tsx` — inline danger message with icon, announced to screen readers
 
 ## Hooks
 - `useTheme` — `src/hooks/use-theme.ts` — returns the light/dark color tokens for the system scheme
+- `useShake` — `src/hooks/use-shake.ts` — Reanimated horizontal shake: `{ style, shake }`
 
 ## Services & utils
 - `src/utils/money.ts` — `formatSen`, `formatSenPlain`, `parseAmountInput`, `SEN_PER_RINGGIT`, `MAX_INPUT_SEN` — integer-sen money helpers
 - `src/utils/recipient.ts` — `maskAccountNumber`, `getInitials`, `filterRecipients`
-- `src/services/types.ts` — `Recipient` domain type
-- `src/services/mock-data.ts` — `MOCK_BALANCE_SEN`, `MOCK_RECIPIENTS` seed data (imported directly until slice 3a)
+- `src/utils/validation.ts` — `validateTransfer`, `checkTransferAllowed`, `getRemainingDailyLimit`, `hasErrors`, `MIN_TRANSFER_SEN`, `NOTE_MAX_LENGTH` — Zod shape rules + balance/limit rules
+- `src/services/types.ts` — `Recipient`, `Account` domain types
+- `src/services/mock-data.ts` — `MOCK_ACCOUNT` (balance, daily limit, spent today), `MOCK_RECIPIENTS` seed data (imported directly until slice 3a)
 - Tests: `src/utils/*.test.ts` (Jest, `jest-expo` preset; `npm test`)
 
 ## Native capabilities
 - `expo-symbols` — `SymbolView` icons (SF Symbols iOS / Material Symbols Android) — dev build? n
+- `expo-haptics` — error haptic on invalid amount / Review — dev build? n
 
 ## Dependencies
 - `expo` ~58.0.26, `react-native` 0.88.1, `react` 19.3.0 — platform
 - `expo-router` ~58.0.32 — file-based navigation (Stack)
 - `react-native-safe-area-context` ~5.11.1 — `SafeAreaView` in `Screen`
 - `expo-status-bar` ~58.0.5 — status bar style follows light/dark
-- `react-native-reanimated` 4.7.1 + `react-native-worklets` 0.13.0 — planned: success/shake animations
+- `react-native-reanimated` 4.7.1 + `react-native-worklets` 0.13.0 — `useShake`; planned: success check animation
 - `expo-symbols` ~58.0.5 — icons
+- `expo-haptics` ~58.0.8 — haptic feedback
+- `zod` ^4.6.7 — shape validation for the transfer form
 - `eslint` ^9 + `eslint-config-expo` ~58.0.4 (dev) — `npx expo lint`
 - `jest` ~30.5.2 + `jest-expo` ~58.0.15 + `@types/jest` 30.0.0 + `@testing-library/react-native` ^14.1.0 (dev) — unit/component tests
 - Kept from template (router peers or likely needed): `expo-constants`, `expo-font`, `expo-linking`, `expo-system-ui`, `react-native-gesture-handler`
@@ -55,3 +61,4 @@ _Last updated: 2026-11-24 (slice 1: money + Send form UI)_
 - Targets iOS + Android only, no web
 - Money is always integer sen; only `utils/money.ts` converts to ringgit text
 - Tests sit next to the code as `*.test.ts`; `src/app/` holds routes only
+- Form errors are derived on render from `validateTransfer`, never stored in state
