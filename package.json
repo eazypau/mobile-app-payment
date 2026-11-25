@@ -47,6 +47,9 @@
   },
   "private": true,
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^react-native-reanimated/mock$": "<rootDir>/jest/reanimated-mock.js"
+    }
   }
 }
