@@ -106,3 +106,60 @@ Without our tokens, dark mode would show our dark screens under a white header, 
 **Verdict:** 🟡 right idea, slightly off target
 
 **Answer:** The picker would reopen with the **old search text still typed in** and the list still filtered by it, possibly showing "No recipients match", which looks like the recipients vanished. The selected recipient itself lives in the Send screen's state, not the picker's, so it isn't the thing that leaks. The picker's `useState` survives because the `Modal` stays mounted inside the Send screen and is only hidden.
+
+---
+
+## Slice 2: Validation
+
+### 1. Errors are computed on every render (`const errors = validateTransfer(...)`) instead of being kept in `useState`. What bug would storing them invite?
+
+**My answer:** if the app didnt rerender accordingly, it may not see the latest error. Either that, if setError is forgot to be used, it will easily missed out the latest error
+
+**Verdict:** 🟡 the second half is the real answer
+
+**Answer:** Stored errors **go stale**. Every code path that changes an input (recipient, amount, note), and later the *account itself* (a balance refresh after a transfer), would have to remember to call `setErrors`. Any missed path leaves an outdated message on screen. Deriving them means there's one source of truth: the inputs. The errors can't disagree with what's on screen, and there's no extra render from a `setErrors` call. The first half isn't the issue, because changing an input already re-renders the screen.
+
+### 2. Why does the shake fire from `handleAmountChange` instead of a `useEffect` that watches `limitError`? Name one behavior that would differ with the effect.
+
+**My answer:** if using useEffect, it may only shake once and thats it...?
+
+**Verdict:** 🟡 one real difference, unexplained
+
+**Answer:** A shake is a reaction to a **user event**, and effects are for syncing with external systems (React's "You Might Not Need an Effect" guidance). An effect would behave differently in two ways:
+- **It shakes too often.** `limitError` is a *string*. Going from the balance message to the daily-limit message changes it, so the effect fires again even though the amount was already invalid.
+- **It can't shake when it should.** Tapping Review while the error is already showing doesn't change `limitError`, so the effect never re-runs. This is the "only once" you sensed.
+
+The handler compares "was allowed" against "is allowed", so it fires exactly on the valid → invalid transition, and `handleReview` can shake on purpose.
+
+### 3. Why does the shake offset use Reanimated's `useSharedValue` instead of `useState`? What would `useState` cost during the animation?
+
+**My answer:** useState would trigger rerender while useShredValue doesnt
+
+**Verdict:** ✅ correct; here's the deeper reason
+
+**Answer:** With `useState`, every animation frame (60–120 per second) would be a `setState` → re-render → layout on the **JS thread**. If the JS thread is busy (validation, a network response), frames drop and the shake stutters. A shared value lives on the **UI thread**: `offset.set(withSequence(...))` hands the whole animation to native once, and React never re-renders while it runs. This is a core RN-vs-web difference, because on web a CSS animation is already off the main JS thread.
+
+### 4. With a RM 12,480.50 balance and RM 7,500 left today, the user types RM 13,000, then backspaces down to RM 8,000. Which message shows at each point, and does it shake again at RM 8,000?
+
+**My answer:** At 13000, shakes and error message showing exceed balance will display. At 8000, it will be the same as in 13000
+
+**Verdict:** 🟡 the first half is right, and the question had a trap I didn't intend
+
+**Answer:**
+- **At RM 13,000** it shakes once and shows the **balance** message ✅. Typing `1 3 0 0 0 0 0` goes RM 1,300.00 (allowed) → RM 13,000.00 (too much), so that's one crossing.
+- **My question was flawed:** with a cash-register input, **backspace divides by 10**. Backspacing from RM 13,000.00 gives RM 1,300.00 (allowed), so you can't backspace to RM 8,000. You'd clear the field and retype `8 0 0 0 0 0`, which goes RM 800.00 (allowed) → RM 8,000.00. That **shakes again**, because it's a new valid → invalid crossing.
+- **The message at RM 8,000 is different:** "over your daily limit… RM 7,500.00 more today". RM 8,000 is within the balance, so the balance check passes, and the daily-limit check is what fails.
+- **The edge case:** if the amount could ever jump *directly* from RM 13,000 to RM 8,000 (for example a prefill in a future "send again" feature), it would be invalid → invalid. The message would change, but there'd be **no shake**.
+
+### 5. The note has both `maxLength={140}` on the `TextInput` *and* a Zod `.max(140)`. Is the Zod rule dead code? Argue it.
+
+**My answer:** I would take it as a safety net instead of the dead code. Also, maxlength in Textinput might not cover edge cases like if user copy paste from somewhere else
+
+**Verdict:** ✅ right call; the paste reason is shaky
+
+**Answer:** It's defense in depth, not dead code. `maxLength` is a **UI convenience**, and the schema is the **rule**:
+- The rule must hold for notes that *don't* come through this `TextInput`, such as a "send again" prefill from history, or the same schema reused at the API boundary.
+- If someone later removes or changes `maxLength`, the rule still holds.
+- Zod checks *after trimming*, which `maxLength` can't do.
+
+On paste: I believe RN's native `maxLength` also truncates pasted text on both platforms, so paste probably isn't the gap. I haven't verified it on a device.
