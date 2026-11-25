@@ -1,4 +1,4 @@
-import type { ApiErrorCode, ApiResult } from './types';
+import type { ApiError, ApiErrorCode, ApiResult } from './types';
 
 /**
  * Bridges our `ApiResult` union to TanStack Query, which needs a query
@@ -7,17 +7,23 @@ import type { ApiErrorCode, ApiResult } from './types';
  */
 export class ApiRequestError extends Error {
   readonly code: ApiErrorCode;
+  readonly attemptsRemaining?: number;
 
-  constructor(code: ApiErrorCode) {
+  constructor(code: ApiErrorCode, attemptsRemaining?: number) {
     super(code);
     this.name = 'ApiRequestError';
     this.code = code;
+    this.attemptsRemaining = attemptsRemaining;
+  }
+
+  static from(error: ApiError): ApiRequestError {
+    return new ApiRequestError(error.code, error.attemptsRemaining);
   }
 }
 
 export function unwrap<T>(result: ApiResult<T>): T {
   if (result.ok) return result.data;
-  throw new ApiRequestError(result.error.code);
+  throw ApiRequestError.from(result.error);
 }
 
 export function isApiErrorCode(error: unknown, code: ApiErrorCode): boolean {
@@ -41,6 +47,12 @@ export function getErrorMessage(error: unknown): string {
       return "You don't have enough money for this transfer. Your balance may have changed.";
     case 'DAILY_LIMIT_EXCEEDED':
       return "This transfer would go over today's limit.";
+    case 'INVALID_PIN':
+      return error.attemptsRemaining === 1
+        ? 'Wrong PIN. 1 attempt left before transfers are locked.'
+        : `Wrong PIN. ${error.attemptsRemaining ?? 'A few'} attempts left.`;
+    case 'PIN_LOCKED':
+      return 'Too many wrong PINs, so transfers are locked to protect your account. (Demo: reload the app to unlock.)';
     default: {
       // Compile error here if a new ApiErrorCode is added without a message.
       const unhandled: never = error.code;

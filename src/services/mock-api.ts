@@ -1,7 +1,7 @@
 import { BANKS } from '@/constants/banks';
 
 import { MOCK_ACCOUNT, MOCK_ACCOUNT_HOLDER_NAMES, MOCK_RECIPIENTS } from './mock-data';
-import type { Account, ApiErrorCode, ApiResult, Recipient, TransferReceipt, TransferRequest } from './types';
+import type { Account, ApiError, ApiResult, Recipient, TransferReceipt, TransferRequest } from './types';
 
 /**
  * The fake bank backend. Plain async functions with simulated latency that
@@ -17,7 +17,12 @@ import type { Account, ApiErrorCode, ApiResult, Recipient, TransferReceipt, Tran
  *   original receipt instead of paying twice.
  * - Transfer to "Test: Insufficient funds" → INSUFFICIENT_FUNDS, as if the
  *   balance changed somewhere else since the app last loaded it
+ * - App PIN: `246810`. 5 wrong PINs lock transfers until the app reloads.
  */
+
+/** The demo account's app PIN. A real server stores only a salted hash, never the PIN. */
+export const DEMO_PIN = '246810';
+export const MAX_PIN_ATTEMPTS = 5;
 
 export const mockSettings = {
   latencyMs: 600,
@@ -32,6 +37,7 @@ function createDb() {
     transactions: [] as TransferReceipt[],
     /** idempotency key → the receipt that key produced */
     processedKeys: new Map<string, TransferReceipt>(),
+    failedPinAttempts: 0,
   };
 }
 
@@ -50,8 +56,8 @@ function ok<T>(data: T): ApiResult<T> {
   return { ok: true, data };
 }
 
-function fail<T>(code: ApiErrorCode): ApiResult<T> {
-  return { ok: false, error: { code } };
+function fail<T>(code: ApiError['code'], details: Omit<ApiError, 'code'> = {}): ApiResult<T> {
+  return { ok: false, error: { code, ...details } };
 }
 
 export async function getAccount(): Promise<ApiResult<Account>> {
@@ -119,4 +125,24 @@ export async function transfer(request: TransferRequest): Promise<ApiResult<Tran
   if (recipient.id === 'test-timeout') return fail('TIMEOUT');
 
   return ok(receipt);
+}
+
+/**
+ * Checks the app PIN on the server, which owns the attempt counter. A
+ * counter on the device could be reset by reinstalling the app or editing storage.
+ */
+export async function verifyPin(pin: string): Promise<ApiResult<{ verified: true }>> {
+  await wait();
+
+  if (db.failedPinAttempts >= MAX_PIN_ATTEMPTS) return fail('PIN_LOCKED');
+
+  if (pin === DEMO_PIN) {
+    db.failedPinAttempts = 0;
+    return ok({ verified: true });
+  }
+
+  db.failedPinAttempts += 1;
+  const attemptsRemaining = MAX_PIN_ATTEMPTS - db.failedPinAttempts;
+  if (attemptsRemaining === 0) return fail('PIN_LOCKED');
+  return fail('INVALID_PIN', { attemptsRemaining });
 }

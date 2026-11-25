@@ -21,6 +21,20 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage(new ApiRequestError('ACCOUNT_NOT_FOUND'))).toMatch(/couldn't find that account/);
   });
 
+  it('tells the user how many PIN attempts are left', () => {
+    expect(getErrorMessage(new ApiRequestError('INVALID_PIN', 3))).toBe('Wrong PIN. 3 attempts left.');
+    expect(getErrorMessage(new ApiRequestError('INVALID_PIN', 1))).toMatch(/1 attempt left before transfers are locked/);
+    expect(getErrorMessage(new ApiRequestError('PIN_LOCKED'))).toMatch(/locked/);
+  });
+
+  it('keeps attemptsRemaining when unwrapping a failure', () => {
+    try {
+      unwrap({ ok: false, error: { code: 'INVALID_PIN', attemptsRemaining: 2 } });
+    } catch (error) {
+      expect(error instanceof ApiRequestError && error.attemptsRemaining).toBe(2);
+    }
+  });
+
   it('falls back to a generic message for anything else', () => {
     expect(getErrorMessage(new Error('boom'))).toBe('Something went wrong. Please try again.');
     expect(getErrorMessage('nope')).toBe('Something went wrong. Please try again.');

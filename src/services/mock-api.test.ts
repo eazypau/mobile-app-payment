@@ -1,5 +1,14 @@
 import { MOCK_ACCOUNT, MOCK_RECIPIENTS } from './mock-data';
-import { getAccount, getRecipients, lookupAccount, mockSettings, resetMockServer, transfer } from './mock-api';
+import {
+  DEMO_PIN,
+  getAccount,
+  getRecipients,
+  lookupAccount,
+  mockSettings,
+  resetMockServer,
+  transfer,
+  verifyPin,
+} from './mock-api';
 import type { Recipient, TransferRequest } from './types';
 
 beforeEach(() => {
@@ -138,5 +147,34 @@ describe('transfer', () => {
       error: { code: 'DAILY_LIMIT_EXCEEDED' },
     });
     expect((await transfer(request({ amountSen: remaining }))).ok).toBe(true);
+  });
+});
+
+describe('verifyPin', () => {
+  it('accepts the demo PIN', async () => {
+    expect(await verifyPin(DEMO_PIN)).toEqual({ ok: true, data: { verified: true } });
+  });
+
+  it('counts down the attempts left on a wrong PIN', async () => {
+    expect(await verifyPin('000000')).toEqual({ ok: false, error: { code: 'INVALID_PIN', attemptsRemaining: 4 } });
+    expect(await verifyPin('000000')).toEqual({ ok: false, error: { code: 'INVALID_PIN', attemptsRemaining: 3 } });
+  });
+
+  it('resets the count after a correct PIN', async () => {
+    await verifyPin('000000');
+    await verifyPin(DEMO_PIN);
+    expect(await verifyPin('000000')).toEqual({ ok: false, error: { code: 'INVALID_PIN', attemptsRemaining: 4 } });
+  });
+
+  it('locks on the 5th wrong PIN, and then rejects even the right PIN', async () => {
+    for (let i = 0; i < 4; i++) await verifyPin('000000');
+    expect(await verifyPin('000000')).toEqual({ ok: false, error: { code: 'PIN_LOCKED' } });
+    expect(await verifyPin(DEMO_PIN)).toEqual({ ok: false, error: { code: 'PIN_LOCKED' } });
+  });
+
+  it('unlocks after the server resets (the demo equivalent of an app reload)', async () => {
+    for (let i = 0; i < 5; i++) await verifyPin('000000');
+    resetMockServer();
+    expect((await verifyPin(DEMO_PIN)).ok).toBe(true);
   });
 });

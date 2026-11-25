@@ -24,13 +24,21 @@ export type ApiErrorCode =
   | 'TIMEOUT' // the bank may have processed it, but no response came back
   | 'ACCOUNT_NOT_FOUND'
   | 'INSUFFICIENT_FUNDS'
-  | 'DAILY_LIMIT_EXCEEDED';
+  | 'DAILY_LIMIT_EXCEEDED'
+  | 'INVALID_PIN'
+  | 'PIN_LOCKED';
+
+export type ApiError = {
+  code: ApiErrorCode;
+  /** Only for INVALID_PIN: how many tries are left before the PIN locks. */
+  attemptsRemaining?: number;
+};
 
 /**
  * Every mock API call resolves to this union instead of throwing, so callers
  * must check `ok` before they can touch `data`.
  */
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: { code: ApiErrorCode } };
+export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
 export type TransferRequest = {
   /** Same key = same transfer. The server returns the original result for a repeated key. */
