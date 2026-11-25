@@ -2,12 +2,12 @@
 
 An index of what exists. Reasoning lives in `DECISIONS.md`.
 
-_Last updated: 2026-11-25 (slice 5: history, lists, quick re-send)_
+_Last updated: 2026-11-25 (slice 6: screen test, README, write-up)_
 
 ## Routes
 - `/` — `src/app/index.tsx` — Home: balance via `useAccount` (skeleton / error card / stale notice), 5 recent transactions (tap to re-send), "See all" → `/history`, pull-to-refresh, "Send money" → `/transfer/send`
 - `/history` — `src/app/history.tsx` — FlashList of all transactions: sticky day headers, infinite scroll (20/page), footer spinner/retry/end, pull-to-refresh, tap to re-send
-- Root layout — `src/app/_layout.tsx` — `QueryClientProvider` + `AppState` focus wiring, `Stack` in a token-fed `ThemeProvider`; `transfer` group presented as a modal
+- Root layout — `src/app/_layout.tsx` — `unstable_settings.anchor = 'index'` (Home under deep-linked modals), `QueryClientProvider` + `AppState` focus wiring, `Stack` in a token-fed `ThemeProvider`; `transfer` group presented as a modal
 - `/transfer/*` layout — `src/app/transfer/_layout.tsx` — nested `Stack` for the transfer flow (closing it discards the flow)
 - `/transfer/send` — `src/app/transfer/send.tsx` — waits for `useAccount`, then `SendForm`: recipient, cash-register amount, note (local `useState`), inline validation errors; "Review" saves the draft
 - `/transfer/review` — `src/app/transfer/review.tsx` — summary, `authorizeTransfer()` (biometrics) or `PinSheet`, then `useSendTransfer`; inline errors with Try again / Edit transfer; back locked while busy; redirects Home without a draft
@@ -54,7 +54,8 @@ _Last updated: 2026-11-25 (slice 5: history, lists, quick re-send)_
 - `src/services/mock-history.ts` — `generateHistory` — seeded (deterministic) ~1,000 transactions over ~6 months
 - `src/services/api-error.ts` — `ApiRequestError`, `unwrap`, `isApiErrorCode`, `getErrorMessage`
 - `src/services/mock-data.ts` — `MOCK_ACCOUNT`, `MOCK_RECIPIENTS` (incl. 3 "Test:" failure recipients), `MOCK_ACCOUNT_HOLDER_NAMES` seed data (only `mock-api.ts` imports it)
-- Tests: `src/utils/*.test.ts` (Jest, `jest-expo` preset; `npm test`)
+- Tests: `*.test.ts` next to the code, plus `src/__tests__/send-flow.test.tsx` (RNTL + `renderRouter` on the real route); 90 tests; `npm test`
+- `jest/reanimated-mock.js` — minimal Reanimated mock, mapped via `moduleNameMapper` (the official 4.7.1 mock throws under Jest)
 
 ## Native capabilities
 - `expo-symbols` — `SymbolView` icons (SF Symbols iOS / Material Symbols Android) — dev build? n
@@ -85,6 +86,12 @@ _Last updated: 2026-11-25 (slice 5: history, lists, quick re-send)_
 - `Spacing` — xs 4, sm 8, md 16, lg 24, xl 32, xxl 48
 - `Radius` — sm 8, md 12, lg 20, pill 999
 - `src/constants/banks.ts` — `BANKS` reference list for account-number transfers
+
+## Docs
+- `README.md` — setup, demo data, how to trigger each error
+- `WRITEUP.md` — architecture, security, UX, performance, challenges, next steps
+- `DECISIONS.md` — every A-over-B decision
+- `QUIZ.md` — end-of-slice quizzes (kept in repo, not linked)
 
 ## Conventions
 - File names are kebab-case (`app-text.tsx`), and components are named exports (screens are default exports)

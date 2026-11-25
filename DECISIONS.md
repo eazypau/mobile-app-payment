@@ -217,3 +217,7 @@ Time is limited, and the SDK 58 contacts API is new and class-based, with a perm
 ## History cursor: the last item's id, not a page number — 2026-11-25
 **Chose:** "give me what's older than transaction X" over offset pagination ("page 3", or skip 40).
 New transfers land at the top of the history, so between two page loads an offset shifts and the next page repeats a row the user already saw (or skips one in the other direction). An id-based cursor stays correct, and a test proves it by inserting a transfer between two page loads.
+
+## Write-up: a separate `WRITEUP.md` — 2026-11-25
+**Chose:** a narrative `WRITEUP.md` (architecture, decisions, security, challenges, next steps) next to a short, practical README, over one long README.
+Reviewers need the setup steps first, and a long design essay would bury them. The write-up links to `DECISIONS.md` for the full decision log.
