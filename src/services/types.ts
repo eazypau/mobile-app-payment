@@ -19,10 +19,33 @@ export type Bank = {
   name: string;
 };
 
-export type ApiErrorCode = 'NETWORK' | 'ACCOUNT_NOT_FOUND';
+export type ApiErrorCode =
+  | 'NETWORK' // request never reached the bank; nothing happened
+  | 'TIMEOUT' // the bank may have processed it, but no response came back
+  | 'ACCOUNT_NOT_FOUND'
+  | 'INSUFFICIENT_FUNDS'
+  | 'DAILY_LIMIT_EXCEEDED';
 
 /**
  * Every mock API call resolves to this union instead of throwing, so callers
  * must check `ok` before they can touch `data`.
  */
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: { code: ApiErrorCode } };
+
+export type TransferRequest = {
+  /** Same key = same transfer. The server returns the original result for a repeated key. */
+  idempotencyKey: string;
+  recipient: Recipient;
+  amountSen: number;
+  note: string;
+};
+
+export type TransferReceipt = {
+  reference: string;
+  recipient: Recipient;
+  amountSen: number;
+  note: string;
+  /** ISO 8601 timestamp from the server. */
+  createdAt: string;
+  balanceAfterSen: number;
+};

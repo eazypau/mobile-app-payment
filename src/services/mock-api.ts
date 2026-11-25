@@ -1,7 +1,7 @@
 import { BANKS } from '@/constants/banks';
 
 import { MOCK_ACCOUNT, MOCK_ACCOUNT_HOLDER_NAMES, MOCK_RECIPIENTS } from './mock-data';
-import type { Account, ApiErrorCode, ApiResult, Recipient } from './types';
+import type { Account, ApiErrorCode, ApiResult, Recipient, TransferReceipt, TransferRequest } from './types';
 
 /**
  * The fake bank backend. Plain async functions with simulated latency that
@@ -11,6 +11,12 @@ import type { Account, ApiErrorCode, ApiResult, Recipient } from './types';
  * - Account lookup: a number starting with `000` → ACCOUNT_NOT_FOUND
  * - Account lookup: a number starting with `999` → NETWORK
  * - Account load: set `mockSettings.simulateAccountLoadFailure = true` → NETWORK
+ * - Transfer to "Test: Network error" → NETWORK (nothing happens)
+ * - Transfer to "Test: Timeout" → the transfer IS processed, but the response
+ *   is "lost" (TIMEOUT). Retrying with the same idempotency key returns the
+ *   original receipt instead of paying twice.
+ * - Transfer to "Test: Insufficient funds" → INSUFFICIENT_FUNDS, as if the
+ *   balance changed somewhere else since the app last loaded it
  */
 
 export const mockSettings = {
@@ -19,10 +25,22 @@ export const mockSettings = {
 };
 
 // In-memory "server database", seeded at startup and reset on every reload.
-const db = {
-  account: { ...MOCK_ACCOUNT },
-  recipients: [...MOCK_RECIPIENTS],
-};
+function createDb() {
+  return {
+    account: { ...MOCK_ACCOUNT },
+    recipients: [...MOCK_RECIPIENTS],
+    transactions: [] as TransferReceipt[],
+    /** idempotency key → the receipt that key produced */
+    processedKeys: new Map<string, TransferReceipt>(),
+  };
+}
+
+let db = createDb();
+
+/** Back to the seed data. Used by tests. */
+export function resetMockServer() {
+  db = createDb();
+}
 
 function wait(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, mockSettings.latencyMs));
@@ -65,4 +83,40 @@ export async function lookupAccount(bankId: string, accountNumber: string): Prom
     bankName: bank.name,
     accountNumber,
   });
+}
+
+/**
+ * Moves money. The server re-checks balance and limit itself: the app's
+ * checks are only for UX and can be stale or bypassed.
+ */
+export async function transfer(request: TransferRequest): Promise<ApiResult<TransferReceipt>> {
+  await wait();
+
+  // Idempotency: a key we've seen before gets its original result, never a second transfer.
+  const previous = db.processedKeys.get(request.idempotencyKey);
+  if (previous) return ok(previous);
+
+  const { recipient, amountSen } = request;
+  if (recipient.id === 'test-network') return fail('NETWORK');
+  if (recipient.id === 'test-insufficient' || amountSen > db.account.balanceSen) return fail('INSUFFICIENT_FUNDS');
+  if (amountSen > db.account.dailyLimitSen - db.account.spentTodaySen) return fail('DAILY_LIMIT_EXCEEDED');
+
+  db.account.balanceSen -= amountSen;
+  db.account.spentTodaySen += amountSen;
+
+  const receipt: TransferReceipt = {
+    reference: `TX${String(db.transactions.length + 1).padStart(6, '0')}`,
+    recipient,
+    amountSen,
+    note: request.note,
+    createdAt: new Date().toISOString(),
+    balanceAfterSen: db.account.balanceSen,
+  };
+  db.transactions.push(receipt);
+  db.processedKeys.set(request.idempotencyKey, receipt);
+
+  // The money moved, but the app never hears back.
+  if (recipient.id === 'test-timeout') return fail('TIMEOUT');
+
+  return ok(receipt);
 }

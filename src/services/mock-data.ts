@@ -20,6 +20,10 @@ export const MOCK_RECIPIENTS: Recipient[] = [
   { id: 'r6', name: 'Nurul Izzah', bankName: 'Bank Islam', accountNumber: '12029010234567' },
   { id: 'r7', name: 'Rajesh Kumar', bankName: 'AmBank', accountNumber: '8881023456789' },
   { id: 'r8', name: 'Chong Kah Hoe', bankName: 'Maybank', accountNumber: '162011558890' },
+  // Test recipients: sending to these triggers a failure (see mock-api.ts).
+  { id: 'test-network', name: 'Test: Network error', bankName: 'Demo Bank', accountNumber: '9000000001' },
+  { id: 'test-timeout', name: 'Test: Timeout', bankName: 'Demo Bank', accountNumber: '9000000002' },
+  { id: 'test-insufficient', name: 'Test: Insufficient funds', bankName: 'Demo Bank', accountNumber: '9000000003' },
 ];
 
 /** Registered names the mock lookup can return (banks show them in capitals). */

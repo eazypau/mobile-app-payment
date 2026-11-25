@@ -33,8 +33,14 @@ export function getErrorMessage(error: unknown): string {
   switch (error.code) {
     case 'NETWORK':
       return "We couldn't reach the bank. Check your connection and try again.";
+    case 'TIMEOUT':
+      return "We didn't hear back from the bank, so we can't confirm this transfer yet. Try again: you won't be charged twice.";
     case 'ACCOUNT_NOT_FOUND':
       return "We couldn't find that account. Check the number and the bank.";
+    case 'INSUFFICIENT_FUNDS':
+      return "You don't have enough money for this transfer. Your balance may have changed.";
+    case 'DAILY_LIMIT_EXCEEDED':
+      return "This transfer would go over today's limit.";
     default: {
       // Compile error here if a new ApiErrorCode is added without a message.
       const unhandled: never = error.code;
