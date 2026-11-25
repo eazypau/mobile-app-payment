@@ -324,3 +324,41 @@ _Model answers recorded for later reading._
 **My answer:** _(skipped)_
 
 **Answer:** Expo Router routes are **deep links**. If Send read its recipient and amount from URL params, anyone could send the user a link like `mobileapppayment://transfer/send?to=<scammer>&amount=500000` that opens a ready-made transfer. It still needs Review and biometrics, but it's a social-engineering gift ("just tap confirm"). With the store, only code inside the app can pre-fill a transfer. It also keeps one consistent rule for the whole flow: transfer data never travels in URLs.
+
+---
+
+## Slice 6: Screen test, README, write-up
+
+_Model answers recorded for later reading._
+
+### 1. Why does the screen-level test render the real route with `renderRouter('src/app', { initialUrl: '/transfer/send' })` instead of rendering `<SendForm>` directly?
+
+**My answer:** _(skipped)_
+
+**Answer:** The real route brings along everything the screen depends on in production: the root layout's `QueryClientProvider`, the navigation context (`useHeaderHeight` throws without it), and the account loading from the mock API. Rendering the component alone would mean hand-building those providers, and the test could pass while the real wiring is broken. It also caught a real bug. Deep-linking into the modal left nothing underneath it, which led to the `unstable_settings.anchor` fix.
+
+### 2. In RNTL 14, why must `fireEvent.press(...)` be awaited, and what went wrong when it wasn't?
+
+**My answer:** _(skipped)_
+
+**Answer:** In v14, `fireEvent` is asynchronous: it wraps the event in an async `act()`, so React finishes every state update and effect before the test continues. Without `await`, the next interaction started while the previous `act()` was still open ("overlapping act() calls"). One test then leaked into the next, which is why the limit test passed alone but failed alongside the other.
+
+### 3. Reanimated's official Jest mock was broken, so we wrote our own. What's the risk of a hand-written mock, and why is it acceptable here?
+
+**My answer:** _(skipped)_
+
+**Answer:** **The risk:** a mock can drift from the real API. Tests would keep passing while real animations broke, or a newly used Reanimated API would be missing from the mock. **Why it's acceptable here:** the tests assert on *behavior* (which errors show, and when), not on animations. The mock covers exactly the six APIs the app uses, and an unmocked one fails loudly (`... is not a function`) rather than silently. The comment says why it exists, so it can be deleted once Reanimated's mock is fixed.
+
+### 4. The write-up calls the biometric check "event-bound". In one sentence each, what's the attack, and what's the fix?
+
+**My answer:** _(skipped)_
+
+**Answer:**
+- **The attack:** on a rooted or jailbroken phone, a tool like Frida hooks the app so `authenticateAsync` always returns `success: true`, and the server never knows biometrics didn't actually pass.
+- **The fix:** generate a key pair in the Secure Enclave / Keystore that's unlocked only by biometrics, register the public key with the server, and have the device *sign a server-issued challenge* for each transfer. The server then verifies the signature itself, and all of this fits inside `authorizeTransfer()`.
+
+### 5. A reviewer asks: "Why not just retry failed transfers automatically, like the history query does?" Answer them.
+
+**My answer:** _(skipped)_
+
+**Answer:** A history read is **safe to repeat**: fetching twice changes nothing. A transfer is a **write that moves money**, and after a timeout the app can't know whether it already went through. An automatic retry is only safe *because* of the idempotency key, and even then the user should see what happened ("we can't confirm this yet") and choose to retry, rather than have money move silently in the background. So reads retry once automatically, and transfers use `retry: false` plus an explicit "Try again" with the same key.
