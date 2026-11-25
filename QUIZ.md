@@ -249,3 +249,39 @@ _Model answers recorded for later reading._
 **My answer:** _(skipped)_
 
 **Answer:** Starting a new transfer is a **user event**, so the reset belongs in its handler (React's "You Might Not Need an Effect"). An unmount cleanup has timing risks. In development, React can mount, clean up and re-mount effects to surface bugs, which would run `reset()` while Success is still on screen, wiping the receipt and redirecting Home. Resetting at the start of a new flow has no such timing. Any stale draft left in memory is harmless: its idempotency key could only replay the original receipt, never pay again.
+
+---
+
+## Slice 4: Biometrics + PIN fallback
+
+_Model answers recorded for later reading._
+
+### 1. `authenticateAsync` is called with `disableDeviceFallback: true`. What would the user be able to do without it, and why is that a problem for a bank?
+
+**My answer:** _(skipped)_
+
+**Answer:** Without it, after failed biometric attempts the OS offers the **phone's passcode** instead, and a correct passcode returns `success: true`. Anyone who knows or shoulder-surfs the passcode (a partner, a phone thief) could then approve transfers. Banks keep a **separate app PIN** for this reason. With the flag on, the prompt's fallback button becomes our "Use PIN", which returns `user_fallback`, and the PIN is checked by *our* server, with our own lockout.
+
+### 2. Why does `toAuthorizationResult` treat `user_cancel` as `cancelled` rather than an error?
+
+**My answer:** _(skipped)_
+
+**Answer:** The user backed out **on purpose**, perhaps because they spotted a mistake on the Review screen. Showing a red "authentication failed" error would scold them for being careful. So Review just stays as it was, with the button re-enabled. `system_cancel` (a phone call, or the app going to the background) and `app_cancel` get the same treatment, because nothing went wrong from the user's point of view.
+
+### 3. The PIN attempt counter lives in `mock-api.ts` (the "server"), not in the PIN sheet's state or on the device. Why?
+
+**My answer:** _(skipped)_
+
+**Answer:** Anything on the device can be reset by the attacker holding it. They could kill the app (which loses component state), reinstall it, or edit app storage on a rooted phone. Then the "5 attempts" limit becomes unlimited guesses at a 6-digit PIN, which only has 1,000,000 combinations. A server-side counter survives all of that. The same reasoning is why a real server stores only a salted hash of the PIN and never the PIN itself.
+
+### 4. Why does the PIN sheet use its own 0–9 keypad instead of a `TextInput` with `secureTextEntry` and a number pad?
+
+**My answer:** _(skipped)_
+
+**Answer:** A `TextInput` sends keystrokes through whatever **keyboard app** is installed. On Android, users can install third-party keyboards, and a malicious or leaky one can log what's typed, PINs included. Our own `Pressable` keypad never involves a keyboard app. As a side benefit, it looks the same on iOS and Android, and it auto-submits at 6 digits.
+
+### 5. `authorizeTransfer()` returns a status, but the PIN sheet isn't inside it. Where does the PIN step happen, and how does that fit with "only this function changes in production"?
+
+**My answer:** _(skipped)_
+
+**Answer:** The PIN step needs UI, and service files can't render, so `authorizeTransfer()` returns `needs_pin` and the **Review screen** opens the `PinSheet`. The server then checks the PIN through `verifyPin`. The production upgrade still sits behind the same seam: `authorizeTransfer()` would sign a server challenge with a biometric-protected device key, instead of trusting the OS's yes/no. The PIN path is *already* server-verified, which makes it, interestingly, the more "production-shaped" of the two today.
