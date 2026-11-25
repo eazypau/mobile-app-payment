@@ -12,7 +12,7 @@ import { formatSen } from './money';
  */
 
 export const MIN_TRANSFER_SEN = 100; // RM 1.00
-export const NOTE_MAX_LENGTH = 140;
+export const NOTE_MAX_LENGTH = 50;
 
 export type TransferForm = {
   recipient: Recipient | null;

@@ -1,6 +1,13 @@
 import type { Account, Recipient } from '@/services/types';
 
-import { checkTransferAllowed, getRemainingDailyLimit, hasErrors, validateTransfer, type TransferForm } from './validation';
+import {
+  checkTransferAllowed,
+  getRemainingDailyLimit,
+  hasErrors,
+  validateTransfer,
+  type TransferForm,
+  NOTE_MAX_LENGTH,
+} from './validation';
 
 const account: Account = {
   balanceSen: 1_248_050, // RM 12,480.50
@@ -77,9 +84,11 @@ describe('validateTransfer', () => {
   });
 
   it('measures note length after trimming', () => {
-    const padded = `  ${'a'.repeat(140)}  `;
+    const padded = `  ${'a'.repeat(NOTE_MAX_LENGTH)}  `;
     expect(validateTransfer({ ...validForm, note: padded }, account)).toEqual({});
-    expect(validateTransfer({ ...validForm, note: 'a'.repeat(141) }, account).note).toMatch(/under 140/);
+    expect(validateTransfer({ ...validForm, note: 'a'.repeat(NOTE_MAX_LENGTH + 1) }, account).note).toMatch(
+      new RegExp(`under ${NOTE_MAX_LENGTH}`),
+    );
   });
 
   it('reports every invalid field at once', () => {
