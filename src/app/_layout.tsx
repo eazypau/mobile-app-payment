@@ -1,8 +1,24 @@
+import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type Theme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from 'react-native';
+import { AppState, useColorScheme } from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
+
+// Created once, outside any component, so re-renders never throw away the cache.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    // One retry for reads: enough for a blip, without making errors slow to appear.
+    queries: { retry: 1 },
+  },
+});
+
+// There's no browser "window focus" on mobile. Tell TanStack Query the app is
+// focused when it returns to the foreground, so stale data (the balance) refetches.
+focusManager.setEventListener((setFocused) => {
+  const subscription = AppState.addEventListener('change', (status) => setFocused(status === 'active'));
+  return () => subscription.remove();
+});
 
 export default function RootLayout() {
   const scheme = useColorScheme();
@@ -23,12 +39,14 @@ export default function RootLayout() {
   };
 
   return (
-    <ThemeProvider value={navigationTheme}>
-      <StatusBar style="auto" />
-      <Stack>
-        <Stack.Screen name="index" options={{ title: 'Home' }} />
-        <Stack.Screen name="transfer" options={{ presentation: 'modal', headerShown: false }} />
-      </Stack>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider value={navigationTheme}>
+        <StatusBar style="auto" />
+        <Stack>
+          <Stack.Screen name="index" options={{ title: 'Home' }} />
+          <Stack.Screen name="transfer" options={{ presentation: 'modal', headerShown: false }} />
+        </Stack>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

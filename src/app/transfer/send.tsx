@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { AmountInput } from '@/components/amount-input';
@@ -13,10 +13,11 @@ import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { Radius, Spacing } from '@/constants/theme';
+import { useAccount } from '@/hooks/queries';
 import { useShake } from '@/hooks/use-shake';
 import { useTheme } from '@/hooks/use-theme';
-import { MOCK_ACCOUNT, MOCK_RECIPIENTS } from '@/services/mock-data';
-import type { Recipient } from '@/services/types';
+import { getErrorMessage } from '@/services/api-error';
+import type { Account, Recipient } from '@/services/types';
 import { formatSen } from '@/utils/money';
 import {
   checkTransferAllowed,
@@ -27,10 +28,30 @@ import {
   type FieldErrors,
 } from '@/utils/validation';
 
-// Seed data until slice 3a loads the account through the mock API.
-const account = MOCK_ACCOUNT;
-
+/**
+ * Waits for the account before showing the form. Normally it's already cached
+ * from Home, but a deep link can open this screen directly.
+ */
 export default function SendScreen() {
+  const account = useAccount();
+
+  if (account.data) return <SendForm account={account.data} />;
+
+  return (
+    <Screen>
+      {account.isError ? (
+        <>
+          <FieldError message={getErrorMessage(account.error)} />
+          <Button title="Try again" variant="secondary" onPress={() => account.refetch()} loading={account.isFetching} />
+        </>
+      ) : (
+        <ActivityIndicator />
+      )}
+    </Screen>
+  );
+}
+
+function SendForm({ account }: { account: Account }) {
   const colors = useTheme();
   const headerHeight = useHeaderHeight();
   const amountShake = useShake();
@@ -157,7 +178,6 @@ export default function SendScreen() {
 
       <RecipientPicker
         visible={isPickerOpen}
-        recipients={MOCK_RECIPIENTS}
         onSelect={(selected) => {
           setRecipient(selected);
           setIsPickerOpen(false);

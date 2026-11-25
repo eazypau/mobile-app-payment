@@ -137,3 +137,23 @@ It covers the realistic failures a reviewer will try (too little, more than the 
 ## Zod: the classic API — 2026-11-25
 **Chose:** `zod` (`z.string().max(140)`) over `zod/mini` (`z.string().check(z.maxLength(140))`).
 The chainable API is what reviewers recognize, and `zod/mini`'s size savings don't matter for one small schema.
+
+## Server state: TanStack Query, with Zustand only for the draft — 2026-11-25
+**Chose:** TanStack Query for the account, recipients and lookups, over Zustand async actions or a `useEffect` fetch in each screen. This replaces part of the earlier Zustand decision: Zustand now holds only client state (the draft transfer).
+Server state needs caching, loading and error status, retries and refetching, which TanStack Query provides as the production standard instead of hand-written flags. Its retries are turned off for transfers, because only the idempotency key makes a retry safe, and on React Native its "refetch on focus" has to be wired to `AppState` by hand, since there's no browser window focus event.
+
+## Balance loading: skeleton, error card, pull-to-refresh — 2026-11-25
+**Chose:** a placeholder bar where the balance goes, plus an error card with "Try again", over a spinner.
+The card keeps its size, so nothing jumps when the number arrives, and a failed load explains itself and offers a way out. A failed load is demoed with a documented `mockSettings.simulateAccountLoadFailure` flag in the mock API, since Home has no input to trigger a magic value.
+
+## Typed recipients: account number + bank, confirmed by a name lookup — 2026-11-25
+**Chose:** typing an account number and picking the bank, over an account number alone or a DuitNow phone ID.
+This matches how Malaysian IBG/DuitNow account transfers work, where the bank must be chosen. Showing the account holder's name before sending is the main anti-fraud check against typos and scams.
+
+## Lookup trigger: automatic, debounced and gated — 2026-11-25
+**Chose:** looking the account up about 500ms after typing stops, and only once a bank is picked and there are 10+ digits, over an explicit "Look up" tap or an ungated auto-lookup.
+Name-enumeration abuse is stopped by server-side rate limiting, not by the UI, so the client choice is about UX and request volume, and the gate skips half-typed numbers. Because the lookup is a TanStack query keyed by bank and number, stale responses and duplicate requests are handled, and the explicit "Send to this account" tap is still the user's confirmation.
+
+## Result union meets TanStack Query: `unwrap()` at the query boundary — 2026-11-25
+**Chose:** keeping the mock API's `ApiResult` union and converting a failure into a thrown `ApiRequestError` (which keeps its `code`) inside each query function, over treating `{ ok: false }` as successful data or switching the API to throwing.
+TanStack Query only sees a failure, and only retries or shows `isError`, when the query function throws, so the conversion has to happen somewhere. Doing it in one `unwrap()` keeps the service layer framework-free, and `getErrorMessage()` still switches over every error code with a `never` check.

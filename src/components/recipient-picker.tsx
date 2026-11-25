@@ -1,30 +1,38 @@
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AccountLookup } from '@/components/account-lookup';
+import { FieldError } from '@/components/field-error';
 import { RecipientRow } from '@/components/recipient-row';
 import { AppText } from '@/components/ui/app-text';
+import { Button } from '@/components/ui/button';
 import { Radius, Spacing } from '@/constants/theme';
+import { useRecipients } from '@/hooks/queries';
 import { useTheme } from '@/hooks/use-theme';
+import { getErrorMessage } from '@/services/api-error';
 import type { Recipient } from '@/services/types';
-import { filterRecipients } from '@/utils/recipient';
+import { filterRecipients, looksLikeAccountNumber } from '@/utils/recipient';
 
 type RecipientPickerProps = {
   visible: boolean;
-  recipients: Recipient[];
   onSelect: (recipient: Recipient) => void;
   onClose: () => void;
 };
 
 /**
- * Native modal sheet for choosing a recipient. It lives inside the Send
+ * Native modal sheet for choosing a recipient: search saved recipients, or
+ * type an account number to look up a new one. It lives inside the Send
  * screen, so the choice goes back through `onSelect` into local state.
  */
-export function RecipientPicker({ visible, recipients, onSelect, onClose }: RecipientPickerProps) {
+export function RecipientPicker({ visible, onSelect, onClose }: RecipientPickerProps) {
   const colors = useTheme();
+  const recipients = useRecipients();
   const [query, setQuery] = useState('');
-  const results = filterRecipients(recipients, query);
+
+  const savedMatches = filterRecipients(recipients.data ?? [], query);
+  const isAccountNumber = looksLikeAccountNumber(query);
 
   function close() {
     setQuery('');
@@ -34,6 +42,23 @@ export function RecipientPicker({ visible, recipients, onSelect, onClose }: Reci
   function select(recipient: Recipient) {
     setQuery('');
     onSelect(recipient);
+  }
+
+  function renderSavedEmpty() {
+    if (recipients.isPending) return <ActivityIndicator color={colors.textMuted} style={styles.empty} />;
+    if (recipients.isError) {
+      return (
+        <View style={styles.empty}>
+          <FieldError message={getErrorMessage(recipients.error)} />
+          <Button title="Try again" variant="secondary" onPress={() => recipients.refetch()} loading={recipients.isFetching} />
+        </View>
+      );
+    }
+    return (
+      <AppText color="textMuted" style={styles.emptyText}>
+        No saved recipients match “{query}”
+      </AppText>
+    );
   }
 
   return (
@@ -68,17 +93,18 @@ export function RecipientPicker({ visible, recipients, onSelect, onClose }: Reci
           />
         </View>
 
+        {isAccountNumber && <AccountLookup accountNumber={query.trim()} onSelect={select} />}
+
+        <AppText variant="label" color="textMuted">
+          Saved
+        </AppText>
         <FlatList
-          data={results}
+          data={savedMatches}
           keyExtractor={(recipient) => recipient.id}
           renderItem={({ item }) => <RecipientRow recipient={item} onPress={() => select(item)} />}
           // Let a tap on a row select it even while the keyboard is open (otherwise the first tap only dismisses the keyboard).
           keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
-            <AppText color="textMuted" style={styles.empty}>
-              No recipients match “{query}”
-            </AppText>
-          }
+          ListEmptyComponent={renderSavedEmpty()}
         />
       </SafeAreaView>
     </Modal>
@@ -110,6 +136,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   empty: {
+    marginTop: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  emptyText: {
     textAlign: 'center',
     marginTop: Spacing.xl,
   },
